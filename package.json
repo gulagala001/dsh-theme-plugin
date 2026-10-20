@@ -1,0 +1,49 @@
+{
+  "name": "@gulagala001/dsh-theme-plugin",
+  "version": "0.1.0-dsh.0.2.1-rc.2",
+  "description": "Themes, appearance customization and visual theme markets for DeepSeek Harness.",
+  "type": "module",
+  "author": "gulagala001",
+  "repository": { "type": "git", "url": "git+https://github.com/gulagala001/dsh-theme-plugin.git" },
+  "homepage": "https://github.com/gulagala001/dsh-theme-plugin#readme",
+  "bugs": { "url": "https://github.com/gulagala001/dsh-theme-plugin/issues" },
+  "keywords": ["dsh", "dsh-plugin", "deepseek-harness", "theme", "appearance", "theme-market", "theme-manager"],
+  "packageManager": "pnpm@10.28.0",
+  "license": "MIT",
+  "main": "src/index.mjs",
+  "exports": {
+    ".": "./src/index.mjs",
+    "./client": "./lib/client.js",
+    "./protocol": "./src/shared/protocol.mjs",
+    "./package.json": "./package.json"
+  },
+  "engines": { "node": ">=22.19", "dsh": "0.2.1-rc.2" },
+  "files": ["src", "lib", "vendor", "assets", "docs", "cordis.patch.yml", "README.md", "README_EN.md", "LICENSE", "THIRD_PARTY_NOTICES.md", "scripts/check-package.mjs", "scripts/theme.mjs"],
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "node --test test/*.test.mjs",
+    "prepack": "node scripts/check-package.mjs",
+    "theme": "node scripts/theme.mjs"
+  },
+  "dependencies": {
+    "acorn": "8.18.0",
+    "acorn-walk": "8.3.4",
+    "fflate": "0.8.2",
+    "postcss": "8.5.6",
+    "postcss-selector-parser": "7.1.0",
+    "postcss-value-parser": "4.2.0",
+    "semver": "7.7.3",
+    "tar-stream": "3.1.7",
+    "yaml": "2.8.1",
+    "playwright-core": "1.63.0"
+  },
+  "devDependencies": { "esbuild": "0.25.12", "react": "18.3.1", "react-dom": "18.3.1", "@deepseek-ai/dsh": "0.2.1-rc.2" },
+  "peerDependencies": { "@deepseek-ai/cordis": "4.0.5" },
+  "dsh": {
+    "bundle": { "patch": "./cordis.patch.yml" },
+    "client": {
+      "platform": "web",
+      "inject": ["@deepseek-ai/dsh-client-connection", "@deepseek-ai/dsh-client-ui-slots", "@deepseek-ai/dsh-client-ui-theme", "@deepseek-ai/dsh-client-ui-settings", "@deepseek-ai/dsh-client-ui-primitives", "@deepseek-ai/dsh-client-ui-layout", "@deepseek-ai/dsh-client-modules", "@deepseek-ai/dsh-client-locale"]
+    }
+  }
+}

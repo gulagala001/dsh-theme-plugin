@@ -1,0 +1,37 @@
+
+/* Windows caption controls are fixed to the viewport. A blurred sidebar
+   changes their containing block and drops them onto the brand row. */
+html.omd[data-windows-titlebar] :is([data-omd-part="sidebar"], [data-omd-surface="sidebar"], [data-omd-surface="sidebar-column"]) {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+/* Keep the caption's drag surface clear of the host's 28px toggle at x=12. */
+html.omd[data-windows-titlebar] [data-omd-surface="frame"]::before { left: 48px; }
+
+/* Pointer, keyboard and touch expose the same native commands. Preserve row
+   heights so the host's animations and scroll calculations remain accurate. */
+[data-omd-sidebar-browser][data-wide="true"] [role="treeitem"]:focus-visible {
+  outline: 2px solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary)); outline-offset: -2px;
+}
+[data-omd-sidebar-browser][data-wide="true"] [role="treeitem"]:focus-within [data-omd-nav-part="row-actions"] { display: inline-flex; }
+[data-omd-sidebar-browser][data-wide="true"] [role="treeitem"]:focus-within :is([data-omd-nav-part="time"],[data-omd-nav-part="pin"]) { display: none; }
+[data-omd-sidebar-browser][data-wide="true"] [data-omd-nav-part="row-actions"] { gap: 2px; }
+[data-omd-sidebar-browser][data-wide="true"] [data-omd-nav-part="row-actions"] [data-omd-nav-part="row-action"] { width: 24px; min-width: 24px; height: 26px; }
+@media (hover: none), (pointer: coarse) {
+  [data-omd-sidebar-browser][data-wide="true"] [role="treeitem"] [data-omd-nav-part="row-actions"] { display: inline-flex; }
+  [data-omd-sidebar-browser][data-wide="true"] [role="treeitem"] :is([data-omd-nav-part="time"],[data-omd-nav-part="pin"]) { display: none; }
+}
+
+/* A small window keeps a readable conversation behind a modal sidebar. */
+.omd-sidebar-scrim { position: absolute; inset: 0; z-index: 60; border: 0; border-radius: 0; padding: 0; background: #10182845; cursor: default; }
+.omd-sidebar-scrim[hidden] { display: none; }
+[data-omd-sidebar-overlay] { grid-template-columns: 56px minmax(0,1fr) var(--omd-sidebar-right-width,0px) !important; transition: none !important; }
+[data-omd-sidebar-overlay] > [data-omd-surface="sidebar-column"] { position: absolute; inset: 0 auto 0 0; z-index: 70; width: min(280px,calc(100% - 48px)); border-radius: 0 14px 14px 0; background: var(--dsw-specific-sidebar-fill); box-shadow: 10px 0 32px #00000024; overflow: hidden; }
+[data-omd-sidebar-overlay] [data-omd-surface="sidebar"] { width: 100% !important; }
+[data-omd-sidebar-overlay] > [data-omd-surface="conversation"] { grid-column: 2; }
+[data-omd-sidebar-overlay] > [data-omd-surface="workbench-column"] { grid-column: 3; }
+
+@media (prefers-reduced-motion: reduce) {
+  [data-omd-surface="sidebar"] :is([data-omd-nav-part="create"],[role="treeitem"]) { transition: none!important; }
+}
+html[data-omd-reduce-effects] [data-omd-surface="sidebar"] :is([data-omd-nav-part="create"],[role="treeitem"]) { transition: none!important; }

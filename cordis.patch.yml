@@ -1,0 +1,3 @@
+- insert:
+    - id: dsh-theme-plugin
+      name: '@gulagala001/dsh-theme-plugin'

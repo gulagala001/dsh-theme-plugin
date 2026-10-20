@@ -17,7 +17,7 @@ export async function download(url, { limit = 30 * 1024 * 1024, timeout = 25000,
   const combined = signal ? AbortSignal.any([signal, AbortSignal.timeout(timeout)]) : AbortSignal.timeout(timeout);
   for (let redirects = 0; redirects < 6; redirects++) {
     const target = await publicUrl(current);
-    const response = await fetch(target, { redirect: 'manual', signal: combined, headers: { 'User-Agent': 'dsh-theme-plugin/0.1', ...headers } });
+    const response = await fetch(target, { redirect: 'manual', signal: combined, headers: { 'User-Agent': 'dsh-theme-plugin/0.2', ...headers } });
     if ([301, 302, 303, 307, 308].includes(response.status)) {
       const location = response.headers.get('location'); await response.body?.cancel();
       if (!location) throw new ThemeError('download', '下载重定向缺少地址');

@@ -23,6 +23,7 @@ export function ThemeSettings({ client, appearance, customization }) {
     <header className="dtp-heading"><div><h2>外观</h2><p>选择喜欢的主题，让工作空间更合心意。</p></div>{selected && <span className="dtp-active-label">{selected.name}</span>}</header>
     <SegmentedControl id="dtp-navigation" label="外观页面" value={page} options={[{ value: 'appearance', label: '外观设置' }, { value: 'themes', label: '主题管理' }, { value: 'market', label: '市场' }]} onChange={changePage}/>
     {state.busy && <div role="status" className="dtp-notice"><span className="dtp-spinner"/>{state.busy.label}…</div>}
+    {state.reloadPending && <div role="status" className="dtp-notice">主题已启用；草稿发送或清空后会自动刷新，完成页面更新。</div>}
     {state.recovery && <div role="status" className="dtp-notice">{state.recovery.message}</div>}
     {state.error && <div role="alert" className="dtp-error"><strong>暂时无法完成</strong><p>{state.error.message}</p><div className="dtp-actions">
       {state.error.repair && <Button size="sm" variant="outline" onClick={() => copy(state.error.repair)}>复制给 AI 修复</Button>}
@@ -58,6 +59,7 @@ function Card({ entry, children, onOpen, active, sourceLabel }) {
     <div className="dtp-card-body"><div className="dtp-card-title"><h3 title={entry.name}>{entry.name}</h3>{active && <span className="dtp-badge">使用中</span>}</div>
       <p className="dtp-author">{entry.author || 'dsh-theme-plugin'}{sourceLabel ? ` · ${sourceLabel}` : ''}</p>
       <p className="dtp-description">{entry.description?.replace(/^#+\s*/gm, '') || '打开详情查看主题信息与安装来源。'}</p>
+      {entry.statusLabel && <p className="dtp-muted">{entry.statusLabel}</p>}
       <div className="dtp-card-footer"><span>{entry.version ? `v${entry.version}` : ''}{entry.stars > 0 ? ` · ★ ${entry.stars}` : ''}</span><div className="dtp-actions">{children}</div></div>
     </div>
   </article>;
@@ -97,9 +99,13 @@ function Market({ client, state }) {
     {state.catalogLoading && !catalog.length ? <div role="status" className="dtp-empty"><span className="dtp-spinner"/>正在获取社区主题与预览…</div> :
       !filtered.length ? <div className="dtp-empty">没有找到匹配主题。可以更换关键词或刷新市场。</div> :
       <div className="dtp-grid">{filtered.slice(0, limit).map(entry => {
-        const installed = state.themes.find(t => t.id === entry.id);
-        return <Card key={entry.id} entry={entry} active={state.active === entry.id} sourceLabel={sources.find(s => s.id === entry.source)?.name} onOpen={() => client.detail({ ...entry, installed: !!installed })}>
-          <Button variant="outline" size="sm" disabled={!!state.busy} onClick={() => installed?.report?.ok ? client.activate(installed.id) : client.operation('install', { id: entry.id }, { apply: true })}>{installed?.report?.ok ? '启用' : installed ? '重新检查并安装' : '安装并应用'}</Button>
+        const installed = state.themes.find(t => t.id === entry.id ||
+          entry.packageName && t.linked?.packageName === entry.packageName);
+        const issue = state.issues.find(t => t.id === entry.id);
+        const statusLabel = installed?.report?.ok ? `已通过 DSH ${state.hostVersion} 本机检查` :
+          entry.hostStatus === 'other' || issue?.code === 'host-version' ? '旧条目 · 安装时查找适配当前 DSH 的新版' : issue ? '上次检查未通过 · 可查看原因并重试' : '安装前检查当前 DSH 兼容性';
+        return <Card key={entry.id} entry={{ ...entry, statusLabel }} active={state.active === entry.id} sourceLabel={sources.find(s => s.id === entry.source)?.name} onOpen={() => client.detail({ ...entry, ...(installed || {}), installed: !!installed })}>
+          <Button variant="outline" size="sm" disabled={!!state.busy} onClick={() => installed?.report?.ok ? client.activate(installed.id) : client.operation('install', { id: entry.id }, { apply: true })}>{installed?.report?.ok ? '启用' : entry.hostStatus === 'other' ? '检查新版并安装' : installed ? '重新检查并安装' : '安装并应用'}</Button>
         </Card>;
       })}</div>}
     {filtered.length > limit && <div className="dtp-more"><Button variant="outline" size="sm" onClick={() => setLimit(limit + 30)}>加载更多</Button></div>}
@@ -115,7 +121,9 @@ function Details({ entry, client, state, copy, appearance }) {
     {shots.length > 0 && <><img className="dtp-detail-image" src={shots[index]} referrerPolicy="no-referrer" alt={`${entry.name}预览 ${index + 1}`}/>{shots.length > 1 && <div className="dtp-thumbnails">{shots.map((url, i) => <button key={url} type="button" aria-label={`预览图 ${i + 1}`} aria-pressed={i === index} onClick={() => setIndex(i)}><img src={url} alt="" loading="lazy" referrerPolicy="no-referrer"/></button>)}</div>}</>}
     <p className="dtp-long-description">{entry.description || '此主题暂未提供详细说明。'}</p>
     <dl className="dtp-info">{entry.license && <><dt>许可声明</dt><dd>{typeof entry.license === 'string' ? entry.license : JSON.stringify(entry.license)}</dd></>}{entry.compatibility && <><dt>上游声明</dt><dd>{entry.compatibility}</dd></>}
-      {entry.report && <><dt>兼容检查</dt><dd>{entry.report.runtime === 'isolated-host' ? '已通过匹配宿主的隔离加载检查' : entry.report.runtime === 'native-managed' ? '由 DSH 原生管理的已安装主题' : '已通过主题格式与资源检查'}</dd></>}
+      {entry.report && <><dt>兼容检查</dt><dd>{!entry.report.ok ? '需要重新检查' : entry.report.runtime === 'isolated-host' ? '已通过匹配宿主的隔离加载检查' : entry.report.runtime === 'native-managed' ? '由 DSH 原生管理的已安装主题' : '已通过主题格式与资源检查'}</dd></>}
+      {entry.source?.selectedFrom && <><dt>版本选择</dt><dd>已从市场原条目 {entry.source.selectedFrom.version || entry.source.selectedFrom.spec} 更新为同来源的 {entry.version}。</dd></>}
+      {entry.source?.fallbackFrom && <><dt>版本选择</dt><dd>较新版未通过当前 DSH 检查，已使用通过检查的目录版本 {entry.version}。</dd></>}
       {entry.repo && <><dt>来源</dt><dd><a href={entry.repo} target="_blank" rel="noreferrer">查看原项目</a></dd></>}
     </dl>
     {entry.report?.warnings?.map(message => <p className="dtp-muted" key={message}>{message}</p>)}

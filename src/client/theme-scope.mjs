@@ -12,9 +12,6 @@ export function createThemeScope(theme) {
     if (url.origin !== location.origin) return value;
     const ownClient = `/plugins/${theme.packageName}/client.js`;
     if (url.pathname === ownClient) return `${API}/assets/${theme.id}/${theme.digest}/${theme.client.path.split('/').map(encodeURIComponent).join('/')}${url.search}`;
-    if (theme.backend?.routes?.some(r => r.kind === 'exact' ? url.pathname === r.path : url.pathname.startsWith(r.path))) {
-      return `${API}/backend/${theme.id}/${theme.digest}${url.pathname}${url.search}`;
-    }
     return value;
   };
   const descriptor = (target, key) => {
@@ -42,7 +39,16 @@ export function createThemeScope(theme) {
       const fn = Reflect.get(target, key, target);
       if (!releaseMethods.includes(key) || typeof fn !== 'function') return typeof fn === 'function' ? fn.bind(target) : fn;
       return (...args) => {
-        const off = fn.apply(target, args);
+        let off;
+        try { off = fn.apply(target, args); }
+        catch (error) {
+          // A theme replacing a built-in slot must shadow the host's default
+          // registration on current DSH. Preserve explicit nonzero priorities.
+          const options = args[0];
+          if (name !== 'slots' || key !== 'register' || !options?.name || (options.priority ?? 0) !== 0 ||
+            !/^(?:single|list) slot .*already has .*priority 0\b/.test(error.message)) throw error;
+          off = fn.call(target, { ...options, priority: -50 }, ...args.slice(1));
+        }
         if (typeof off !== 'function') return off;
         let pending = true;
         const once = () => { if (pending) { pending = false; releases.delete(once); return off(); } };

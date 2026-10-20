@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { text, ThemeError } from '../shared/protocol.mjs';
 import { HOST_VERSION } from '../shared/protocol.mjs';
 import semver from 'semver';
+import { hostFit } from './versions.mjs';
 export const SOURCES = [
   { id: 'king', name: 'DSH 皮肤市场', url: 'https://raw.githubusercontent.com/kingOfSoySauce/dsh-skin-market/main/data/catalog.json', site: 'https://kingofsoysauce.github.io/dsh-skin-market/' },
   { id: 'workshop', name: '创意工坊', url: 'https://dsh-market.com/manifest/skins.json', fallback: 'https://raw.githubusercontent.com/zhu1090093659/dsh-web/dev/market/dist/manifest/skins.json', site: 'https://dsh-market.com' },
@@ -59,7 +60,7 @@ function entry(source, item) {
   result.repo = http(result.repo);
   const location = repositoryKey(result);
   const identity = source === 'workshop' ? `skin-center:${result.originalId}` : location.split('/').length > 2 ? `repo:${location}` : result.packageName ? `package:${result.packageName}` : location ? `repo:${location}` : `spec:${result.spec}`;
-  return { ...result, id: `market-${digest(identity).slice(0, 24)}`, identity, source, sources: [source], sourceId: `${source}:${result.originalId}` };
+  return { ...result, hostStatus: hostFit(result.compatibility), id: `market-${digest(identity).slice(0, 24)}`, identity, source, sources: [source], sourceId: `${source}:${result.originalId}` };
 }
 export function normalizeCatalog(source, data) {
   if (source === 'a2h' && data.code !== 'OK') throw new ThemeError('catalog-service', text(data.message) || '主题市场返回业务错误');
@@ -82,7 +83,7 @@ export function mergeCatalogs(groups) {
       const a = semver.valid(old.version), b = semver.valid(item.version);
       if (fit(item.compatibility) > fit(old.compatibility) || fit(item.compatibility) === fit(old.compatibility) && b && (!a || semver.gt(b, a))) {
         old.alternatives.push({ source: old.source, spec: old.spec, version: old.version });
-        for (const name of ['source', 'sourceId', 'spec', 'version', 'packageName', 'repo', 'compatibility', 'updated']) old[name] = item[name];
+        for (const name of ['source', 'sourceId', 'spec', 'version', 'packageName', 'repo', 'compatibility', 'hostStatus', 'updated']) old[name] = item[name];
         if (item.license) old.license = item.license;
       }
       if (packageKey) byPackage.set(packageKey, old);

@@ -26,7 +26,7 @@ export async function ownedFile(root, name) {
   if (inside(base, relative(base, real)) !== real || !((await stat(real)).isFile())) throw new ThemeError('resource-path', '资源不是主题目录内的文件');
   return real;
 }
-export async function walk(root, { maxFiles = 6000, maxBytes = 160 * 1024 * 1024 } = {}) {
+export async function walk(root, { maxFiles = 6000, maxBytes = 512 * 1024 * 1024 } = {}) {
   const files = []; let bytes = 0;
   async function visit(dir, prefix = '') {
     for (const entry of await readdir(dir, { withFileTypes: true })) {

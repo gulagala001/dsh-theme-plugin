@@ -26,6 +26,9 @@ export async function apply(ctx, config = {}) {
   const root = config.storageDir || join(home, 'dsh-theme-plugin', digest(profile?.dir || 'default').slice(0, 16));
   const engine = new ThemeEngine(ctx, root, { probe });
   ctx.effect(() => () => engine.dispose());
+  ctx.on('webserver/index-inject', rows => rows.push({
+    kind: 'global', name: '__DTP_INDEX_BACKEND__', value: engine.backends.active?.key || null,
+  }));
   let bootError, initialized = false;
   const preferenceWrites = new Map();
   try { await engine.initialize(); } catch (e) { bootError = e.message; ctx.logger?.warn(`主题库恢复失败，已保留原数据：${e.message}`); }
@@ -45,13 +48,6 @@ export async function apply(ctx, config = {}) {
       if (!initialized && path === '/state') { send(res, 503, { error: '正在恢复主题…', code: 'restoring' }); return; }
       await engine.initialization;
       engine.controller.signal.throwIfAborted();
-      if (path.startsWith('/backend/')) {
-        const [, , id, hash, ...parts] = path.split('/'), theme = engine.theme(id, hash);
-        if (!theme?.backend) throw new ThemeError('theme-missing', '主题服务版本不存在');
-        const allowed = [engine.probe?.id, engine.library.state.active, engine.library.state.pending?.id, engine.library.state.pending?.previous];
-        if (!allowed.includes(id)) throw new ThemeError('theme-inactive', '主题后台尚未启用');
-        await engine.backends.proxy(theme, '/' + parts.join('/') + url.search, req, res); return;
-      }
       if (path.startsWith('/client/')) {
         const [, , id, hash] = path.split('/'), theme = engine.theme(id, hash);
         if (!theme?.client) throw new ThemeError('theme-missing', '主题客户端版本不存在');
@@ -99,6 +95,19 @@ export async function apply(ctx, config = {}) {
         return;
       }
       if (path === '/state') { send(res, 200, await engine.state()); return; }
+      if (path === '/probe-backend' && engine.probe) {
+        if (data.action === 'stop') await engine.backends.retain([]);
+        else if (data.action === 'start') await engine.backends.start(engine.probe);
+        else if (data.action === 'check-settings') {
+          const runtime = await engine.backends.start(engine.probe);
+          const entry = runtime?.configEntry, settings = ctx.get('settings');
+          const descriptor = entry && settings?.describe().find(row => row.ns === entry.options.id);
+          if (descriptor) await settings.update(descriptor.ns, descriptor.value, descriptor.revision);
+          send(res, 200, { ok: true, configurable: !!descriptor }); return;
+        }
+        else throw new ThemeError('probe-action', '未知的隔离检查动作');
+        send(res, 200, { ok: true }); return;
+      }
       if (path === '/catalog') { send(res, 200, await engine.market.catalog(data.refresh === true)); return; }
       if (path === '/theme') {
         const theme = engine.theme(data.id); if (!theme) throw new ThemeError('theme-missing', '主题不存在');

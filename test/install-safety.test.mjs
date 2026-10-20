@@ -34,7 +34,7 @@ test('startup does not await native preset inventory before the host is ready', 
     assert.equal(reads, 1);
     assert.equal(exposed, false);
     releaseInventory();
-    assert.equal((await state).version, '0.1.0-dsh.0.2.1-rc.2');
+    assert.equal((await state).version, '0.2.0-dsh.0.2.1-rc.2');
     await engine.discovery;
   } finally { releaseInventory(); engine.dispose(); }
 }));
@@ -97,6 +97,38 @@ test('failed update and process interruption recover the last active revision', 
   const restarted = new Library(root); await restarted.initialize();
   assert.equal(restarted.state.activeDigest, 'old');
   assert.equal(restarted.state.pending, null);
+}));
+test('native theme adoption avoids duplicate installs and restores exclusive routes after failure', () => temporary(async root => {
+  let route = 'native';
+  const manager = { async setBundleEnabled(name, enabled) {
+    assert.equal(name, 'native-theme');
+    if (enabled) { assert.equal(route, null); route = 'native'; }
+    else { assert.equal(route, 'native'); route = null; }
+    return { application: 'applied' };
+  } };
+  const engine = new ThemeEngine({ get: key => key === 'pluginManager' ? manager : undefined }, root);
+  engine.backends = {
+    async start(theme) {
+      if (!theme?.backend) return;
+      assert.equal(route, null, 'the previous native route must be released first');
+      route = theme.id;
+    },
+    async retain(themes) { if (route === 'managed' && !themes.some(t => t?.id === 'managed')) route = null; },
+    dispose() {},
+  };
+  await engine.library.initialize();
+  await engine.library.add({ id: 'native', digest: 'native-v1', linked: { name: 'native-theme', packageName: 'native-theme' }, report: { ok: true } });
+  await engine.library.add({ id: 'managed', digest: 'managed-v1', backend: {}, report: { ok: true } });
+  await engine.library.commit((await engine.library.begin('native')).token);
+  const adopted = await engine.installEntry({ id: 'market-native', packageName: 'native-theme' }, () => { throw Error('must not download a second copy'); });
+  assert.equal(adopted.themes[0].id, 'native');
+  const pending = await engine.activate('managed');
+  assert.equal(route, 'managed');
+  await engine.fail(pending.token, 'client failed');
+  assert.equal(route, 'native');
+  assert.equal(engine.library.state.active, 'native');
+  assert.equal(engine.library.state.pending, null);
+  engine.dispose();
 }));
 test('stylesheet scoping retains html/root conditions and isolates animations', () => {
   const nativeTokens = new Set();

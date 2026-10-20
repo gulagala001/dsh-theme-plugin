@@ -3,13 +3,14 @@ import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, writeFile, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { once } from 'node:events';
+import { Context } from '@deepseek-ai/cordis';
 import { runInNewContext } from 'node:vm';
 import { zipSync, strToU8 } from 'fflate';
 import { extract, githubSpec } from '../src/host/packages.mjs';
 import { inspectClient, wrapClient } from '../src/host/client-entry.mjs';
 import { inspectTheme } from '../src/host/formats.mjs';
-import { ThemeBackends } from '../src/host/theme-backend.mjs';
+import { NativeThemeBackends } from '../src/host/native-backend.mjs';
+import { resolveCli } from '../src/host/probe.mjs';
 
 const temporary = async fn => {
   const root = await mkdtemp(join(tmpdir(), 'dtp-compat-'));
@@ -58,42 +59,51 @@ test('missing published JS builds local source without modifying original files'
   assert.ok(theme.client.code.includes('apply'));
 }));
 
-test('theme backend persists real configuration, authenticates requests and cannot read adjacent files', () => temporary(async root => {
+test('native theme backend uses real host services and releases routes when switching', () => temporary(async root => {
   const source = join(root, 'theme'); await mkdir(source);
-  const secret = join(root, 'unrelated.txt'); await writeFile(secret, 'not accessible');
-  await writeFile(join(source, 'package.json'), '{"type":"module"}');
+  await writeFile(join(source, 'package.json'), JSON.stringify({ name: 'sample', version: '1.0.0', type: 'module', main: 'index.mjs', exports: { './client': './client.js' }, dsh: { client: {} } }));
+  await writeFile(join(source, 'client.js'), 'window.__ModuleLoader__.load({id:"sample",factory:()=>({apply(){}})});');
+  await writeFile(join(source, 'asset.txt'), 'original asset');
+  await writeFile(join(source, 'cordis.patch.yml'), '\uFEFF- insert:\n    - id: sample-backend\n      name: sample\n      config:\n        color: blue\n');
   await writeFile(join(source, 'index.mjs'), `
 import {readFile,writeFile} from 'node:fs/promises';
 import {join} from 'node:path';
-export const inject=['webServer','connection'];
+export const inject=['webServer','connection','themeTestService'];
 export function apply(ctx){
-  ctx.inject(['webServer'],child=>child.webServer.register({kind:'prefix',path:'/theme',handler(req,res){res.writeHead(404);res.end();}}));
   ctx.webServer.register({kind:'exact',path:'/theme/config',async handler(req,res){
     const rejection=ctx.connection.requestRejection(req);if(rejection!==undefined){res.writeHead(rejection);res.end();return;}
-    let denied;try{await readFile(${JSON.stringify(secret)});}catch(e){denied=e.code;}
     const file=join(ctx.dshHomePath(),'value.json');
     if(req.method==='POST'){const chunks=[];for await(const c of req)chunks.push(c);await writeFile(file,Buffer.concat(chunks));}
     let value;try{value=JSON.parse(await readFile(file,'utf8'));}catch{value=null;}
-    res.setHeader('Content-Type','application/json');res.end(JSON.stringify({value,denied}));
+    ctx.themeTestService.calls++;
+    const asset=await readFile(new URL('./asset.txt',import.meta.url),'utf8');
+    res.end(JSON.stringify({value,asset,calls:ctx.themeTestService.calls}));
   }});
 }
 `);
-  const backends = new ThemeBackends(join(root, 'managed'));
-  const theme = { id: 'sample', digest: 'v1', root: source, backend: { entry: 'index.mjs' } };
-  let running;
-  const stop = async () => {
-    if (!running || running.child.exitCode !== null || running.child.signalCode) return;
-    const exit = once(running.child, 'exit'); backends.dispose(); await exit;
+  const ctx = new Context(), routes = new Map(), shared = { calls: 0 };
+  ctx.provide('webServer', { register(route) { assert.equal(routes.has(route.path), false); routes.set(route.path, route); return () => routes.delete(route.path); } });
+  ctx.provide('connection', { requestRejection(req) { return req.authorized ? undefined : 403; } });
+  ctx.provide('themeTestService', shared); ctx.provide('dshHomePath', () => root);
+  const backends = new NativeThemeBackends(ctx, join(root, 'managed'), { cli: resolveCli({ get() {} }) });
+  const theme = await inspectTheme(source, { id: 'sample' });
+  assert.deepEqual(theme.backend.defaultConfig, { color: 'blue' });
+  const request = async (authorized, method = 'GET', data) => {
+    let status = 200, body;
+    const req = { authorized, method, async *[Symbol.asyncIterator]() { if (data) yield Buffer.from(data); } };
+    await routes.get('/theme/config').handler(req, { writeHead(code) { status = code; }, end(value) { body = value; } });
+    return { status, body: body && JSON.parse(body) };
   };
   try {
-    running = await backends.start(theme);
-    assert.equal((await fetch(running.url + '/theme/config')).status, 403);
-    const options = { headers: { 'x-dtp-bridge': running.token, 'content-type': 'application/json' } };
-    const saved = await fetch(running.url + '/theme/config', { ...options, method: 'POST', body: '{"color":"blue"}' });
-    assert.deepEqual(await saved.json(), { value: { color: 'blue' }, denied: 'ERR_ACCESS_DENIED' });
-    await stop();
-    running = await backends.start(theme);
-    const restored = await fetch(running.url + '/theme/config', { headers: { 'x-dtp-bridge': running.token } });
-    assert.equal((await restored.json()).value.color, 'blue');
-  } finally { await stop(); }
+    await backends.start(theme);
+    assert.equal((await request(false)).status, 403);
+    assert.deepEqual((await request(true, 'POST', '{"color":"blue"}')).body, { value: { color: 'blue' }, asset: 'original asset', calls: 1 });
+    assert.equal(shared.calls, 1);
+    await backends.retain([]); assert.equal(routes.size, 0);
+    await backends.start(theme);
+    assert.equal((await request(true)).body.value.color, 'blue');
+    await backends.start({ ...theme, id: 'replacement' });
+    assert.equal(routes.size, 1);
+  } finally { await backends.dispose(); }
+  assert.equal(routes.size, 0);
 }));

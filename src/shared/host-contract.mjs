@@ -2,7 +2,7 @@ import { HOST_VERSION } from './protocol.mjs';
 
 // Bump when module mappings, resource hosting or lifecycle semantics change.
 // Installed packages keep source digests separate from this compatibility stamp.
-export const ADAPTER_VERSION = 5;
+export const ADAPTER_VERSION = 9;
 export const HOST_CONTRACT = Object.freeze({
   version: HOST_VERSION,
   adapterVersion: ADAPTER_VERSION,

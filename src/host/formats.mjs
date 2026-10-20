@@ -1,6 +1,5 @@
 import { readFile, stat, writeFile } from 'node:fs/promises';
 import { basename, dirname, join } from 'node:path';
-import semver from 'semver';
 import { json, exists, walk, digest, ownedFile } from './files.mjs';
 import { transformCss } from './styles.mjs';
 import { adaptClientAssets } from './client-assets.mjs';
@@ -8,6 +7,7 @@ import { adaptClientModules } from './client-modules.mjs';
 import { inspectClient, wrapClient } from './client-entry.mjs';
 import { inspectBackend } from './theme-backend.mjs';
 import { clientSource } from './client-build.mjs';
+import { declaredHost, hostFit } from './versions.mjs';
 export { inspectClient } from './client-entry.mjs';
 import { ADAPTER_VERSION } from '../shared/host-contract.mjs';
 import { API, HOST_VERSION, PROTOCOL, ThemeError, slug, text } from '../shared/protocol.mjs';
@@ -49,6 +49,8 @@ export async function inspectTheme(input, meta = {}) {
   const file = (await stat(input)).isFile();
   const root = file ? dirname(input) : input;
   let manifest, normalized, pkg = await json(join(root, 'package.json'), {}).catch(() => ({}));
+  const range = declaredHost(pkg);
+  if (hostFit(range) === 'other') throw new ThemeError('host-version', `这个版本的主题声明适用于 DSH ${range}，当前为 ${HOST_VERSION}。请使用支持当前 DSH 的主题新版；此版本未安装。`, { declaredHost: range, hostVersion: HOST_VERSION });
   if (file) normalized = normalizeData(await json(input));
   else if (await exists(join(root, 'theme.json'))) {
     manifest = await json(join(root, 'theme.json')); normalized = normalizeData(manifest);
@@ -71,10 +73,11 @@ export async function inspectTheme(input, meta = {}) {
   const hashes = {};
   for (const item of listed.files) hashes[item.name] = digest(await readFile(join(root, item.name)));
   const prepared = normalized.format === 'dsh-client' || normalized.client ? await clientSource(root, pkg, normalized.client?.entry) : null;
-  const contentHash = digest((file ? await readFile(input, 'utf8') : JSON.stringify(hashes)) + (prepared?.built ? digest(prepared.code) : '') + `\nhost:${HOST_VERSION};adapter:${ADAPTER_VERSION}`);
-  const resource = name => `${API}/assets/${id}/${contentHash}/${name.split('/').map(encodeURIComponent).join('/')}`;
   const assets = new Set(listed.files.map(f => f.name));
-  const backend = await inspectBackend(root, pkg, assets);
+  const backend = await inspectBackend(root, pkg, assets, { cli: meta.hostCli });
+  const contentHash = digest((file ? await readFile(input, 'utf8') : JSON.stringify(hashes)) + (prepared?.built ? digest(prepared.code) : '') +
+    (backend?.code ? digest(backend.code + JSON.stringify(backend.hostDependencies)) : '') + `\nhost:${HOST_VERSION};adapter:${ADAPTER_VERSION}`);
+  const resource = name => `${API}/assets/${id}/${contentHash}/${name.split('/').map(encodeURIComponent).join('/')}`;
   const css = [], nativeTokens = new Set();
   for (const path of normalized.styles || []) {
     const full = await ownedFile(root, path), s = await stat(full);
@@ -99,7 +102,7 @@ export async function inspectTheme(input, meta = {}) {
     // Keep lexical helpers and sibling registrations, but capture every
     // registration inside this theme's private loader identity.
     const modules = adaptClientModules(inspected.source, inspected.requires, { program: true });
-    const adapted = adaptClientAssets(modules.factory, { packageName: pkg.name, originalId: normalized.originalId, clientPath: path, assets, resource });
+    const adapted = adaptClientAssets(modules.factory, { packageName: pkg.name, originalId: normalized.originalId, clientPath: path, assets, resource, nativeBackend: !!backend });
     const generated = wrapClient(adapted.factory, { moduleId, originalModuleId: inspected.moduleId, mappings: modules.mappings });
     client = { moduleId, originalModuleId: inspected.moduleId, requires: modules.requires, moduleMappings: modules.mappings, routes: inspected.routes,
       adaptedRoutes: adapted.adaptedRoutes, build: prepared.built, path: path.replace(/^\.\//, ''), code: generated, url: `${API}/client/${id}/${contentHash}` };
@@ -111,8 +114,6 @@ export async function inspectTheme(input, meta = {}) {
     const notice = (await readFile(await ownedFile(root, licenseFile), 'utf8')).slice(0, 2000);
     if (/GNU AFFERO GENERAL PUBLIC LICENSE/i.test(notice) && !/AGPL/i.test(declaredLicense)) warnings.push(`包清单声明 ${declaredLicense || '未注明'}，但 ${licenseFile} 标注 GNU AGPL；请核对原项目许可。`);
   }
-  const range = pkg.engines?.dsh || pkg.dsh?.engines?.dsh || pkg.peerDependencies?.['@deepseek-ai/dsh'];
-  if (range && semver.validRange(range) && !semver.satisfies(HOST_VERSION, range, { includePrerelease: true })) warnings.push(`原包声明宿主 ${range}；需在 ${HOST_VERSION} 隔离验证，不使用原宿主后端。`);
   const hooks = normalized.hooks;
   if (hooks) {
     await ownedFile(root, hooks.entry);

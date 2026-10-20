@@ -113,7 +113,9 @@ try {
   for (const file of packed[0].files) if (files.get(file.path)?.size !== file.size) throw Error(`npm tar inventory mismatch: ${file.path}`);
   if (packed[0].files.length !== files.size) throw Error('npm tar inventory count mismatch');
   for (const [path, file] of files) {
-    if (!tracked.has(path)) throw Error(`Distribution file is missing from the Git index: ${path}`);
+    // Main stores source; the built client is checked against the actual
+    // archive below and is included on the fixed release commit.
+    if (!tracked.has(path) && path !== 'lib/client.js') throw Error(`Distribution file is missing from the Git index: ${path}`);
     const source = await readFile(join(root, path));
     const same = path === 'package.json'
       ? JSON.stringify(JSON.parse(source)) === JSON.stringify(JSON.parse(file.bytes))

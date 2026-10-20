@@ -4,7 +4,30 @@ import { needsRuntimeProbe } from '../shared/host-contract.mjs';
 export function createClient(ctx, appearance, customization) {
   let state = { ready: false, themes: [], issues: [], active: null, catalog: { items: [], sources: [] }, busy: null, error: null, detail: null }, disposed = false, externalCleanup, externalId, serial = 0;
   const listeners = new Set();
-  let monitor, observedRevision = -1, externalDigest;
+  let monitor, reloadTimer, observedRevision = -1, externalDigest;
+  const hasDraft = () => {
+    try {
+      const sessions = ctx.get('sessions'), conversation = ctx.get('conversation');
+      for (const id of sessions?.list.getSnapshot().ids || []) {
+        const binding = sessions.binding(id);
+        if (!binding || !sessions.retainInfo(id).getSnapshot().retainedBy.mainView) continue;
+        const input = conversation?.input.for(binding.ctx).state.getSnapshot();
+        if (input && (input.draft || input.attachmentIds?.length || ['adjudicating', 'submitting'].includes(input.phase))) return true;
+      }
+    } catch { /* Fall back to the visible composer when no session is bound. */ }
+    return [...document.querySelectorAll('[data-composer-input]')].some(input => input.isContentEditable && input.textContent.trim());
+  };
+  const reloadPage = () => {
+    clearTimeout(reloadTimer);
+    reloadTimer = setTimeout(() => {
+      if (disposed) return;
+      if (state.busy || hasDraft()) {
+        emit({ reloadPending: true });
+        reloadPage(); return;
+      }
+      window.location.reload();
+    }, state.reloadPending ? 1000 : 200);
+  };
   const channel = typeof BroadcastChannel === 'function' ? new BroadcastChannel('dsh-theme-plugin/library') : null;
   let appearanceActive = appearance.getSnapshot().active;
   const offAppearance = appearance.subscribe(() => {
@@ -51,13 +74,19 @@ export function createClient(ctx, appearance, customization) {
     externalCleanup = release; externalId = id; externalDigest = theme.digest;
   }
   async function refresh({ apply = false } = {}) {
+    const previous = state.activeTheme;
     const next = await api('state'); emit({ ...next, ready: true });
-    if (apply && next.active && (next.active !== externalId || next.activeTheme?.digest !== externalDigest)) await render(next.active, next.activeTheme);
+    if (apply && next.active && (next.active !== externalId || next.activeTheme?.digest !== externalDigest)) {
+      await render(next.active, next.activeTheme);
+      if ((previous?.id !== next.activeTheme?.id || previous?.digest !== next.activeTheme?.digest) &&
+        (previous?.backend?.requiresReload || next.activeTheme?.backend?.requiresReload)) reloadPage();
+    }
     observedRevision = next.revision;
     return next;
   }
-  async function activate(id) {
+  async function activate(id, { reload = true } = {}) {
     const originalSelection = appearance.getSnapshot().selected;
+    const previous = state.activeTheme;
     emit({ busy: { label: '正在应用主题' }, error: null });
     let pending;
     try {
@@ -66,6 +95,9 @@ export function createClient(ctx, appearance, customization) {
       await api('commit', { token: pending.token });
       await refresh();
       channel?.postMessage({ revision: state.revision });
+      const requiresReload = !!(previous?.backend?.requiresReload || pending.theme?.backend?.requiresReload);
+      if (reload && requiresReload) reloadPage();
+      return { requiresReload };
     } catch (e) {
       if (pending) {
         await api('fail', { token: pending.token, message: e.message }).catch(() => {});
@@ -75,6 +107,7 @@ export function createClient(ctx, appearance, customization) {
         } catch { appearance.reset(); }
       }
       report(e, state.themes.find(x => x.id === id));
+      return null;
     } finally { emit({ busy: null }); }
   }
   async function operation(action, data, { apply = false } = {}) {
@@ -108,7 +141,7 @@ export function createClient(ctx, appearance, customization) {
           if (legacy) {
             const { builtin, ...value } = legacy;
             await this.importFile(new File([JSON.stringify(value)], `${legacy.id}.omd-skin.json`, { type: 'application/json' }));
-          } else await activate(visual.selected);
+          } else await activate(visual.selected, { reload: false });
         }
         if (state.active) {
           const deadline = Date.now() + 35000;
@@ -124,6 +157,8 @@ export function createClient(ctx, appearance, customization) {
           }
           await render(state.active, state.activeTheme);
           if (guard) await api('commit', { token: guard.token });
+          const active = state.activeTheme;
+          if (active?.backend?.requiresReload && window.__DTP_INDEX_BACKEND__ !== `${active.id}/${active.digest}`) reloadPage();
         }
         const synchronize = async () => {
           if (disposed || state.busy) return;
@@ -162,10 +197,12 @@ export function createClient(ctx, appearance, customization) {
     async remove(id) {
       try {
         const theme = state.themes.find(t => t.id === id);
-        if (state.active === id) await activate('default');
+        const switched = state.active === id ? await activate('default', { reload: false }) : {};
+        if (!switched) return;
         await api('remove', { id });
         if (theme?.legacy) appearance.remove(theme.legacy.id);
         await refresh(); channel?.postMessage({ revision: state.revision });
+        if (switched.requiresReload) reloadPage();
       } catch (e) { report(e); }
     },
     async exportTheme(id) {
@@ -178,6 +215,6 @@ export function createClient(ctx, appearance, customization) {
       } catch (e) { report(e); }
     },
     detail: detail => emit({ detail }), dismiss: () => emit({ error: null }),
-    dispose() { disposed = true; ++serial; clearTimeout(monitor); channel?.close(); offAppearance(); externalCleanup?.(); for (const event of ['error', 'unhandledrejection', 'dtp:theme-error']) window.removeEventListener(event, onRuntimeError); listeners.clear(); },
+    dispose() { disposed = true; ++serial; clearTimeout(monitor); clearTimeout(reloadTimer); channel?.close(); offAppearance(); externalCleanup?.(); for (const event of ['error', 'unhandledrejection', 'dtp:theme-error']) window.removeEventListener(event, onRuntimeError); listeners.clear(); },
   };
 }

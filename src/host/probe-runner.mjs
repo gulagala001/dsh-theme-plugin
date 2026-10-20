@@ -1,5 +1,5 @@
 // Run only against an owned disposable DSH home and a fresh headless browser.
-// Theme HTTP backends run in their own restricted process and data directory.
+// Theme backends use the actual host services in this disposable profile.
 // The runner never reads the user's profile.
 import { readFile, writeFile, mkdir, symlink, access } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -57,6 +57,13 @@ try {
   if (!executablePath) throw Error('未找到可用于隔离验证的浏览器；此动态主题尚未安装。');
   browser = await chromium.launch({ headless: true, executablePath, env, args: process.platform === 'darwin' ? ['--use-mock-keychain', '--password-store=basic'] : [] });
   result = await probePage(browser, bootstrap, { screenshots });
+  if (result.ok && theme.backend) {
+    const reopened = await probePage(browser, bootstrap, { screenshots: screenshots ? join(screenshots, 'reopen') : undefined });
+    result = reopened.ok ? { ...result,
+      requiresReload: result.requiresReload || reopened.requiresReload,
+      warnings: [...new Set([...(result.warnings || []), ...(reopened.warnings || [])])],
+      checks: [...new Set([...result.checks, ...reopened.checks, 'backend-dispose', 'backend-remount', 'page-reopen'])] } : { ...reopened, phase: 'page-reopen' };
+  }
 } catch (e) { result = { ok: false, error: e.message }; }
 finally {
   await cleanup();

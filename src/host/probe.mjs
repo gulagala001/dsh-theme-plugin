@@ -20,7 +20,7 @@ export async function preflight(theme, { root, cli, signal, progress, screenshot
   let log = '';
   const code = await new Promise((done, fail) => {
     const child = spawn(process.execPath, [...(cli.includes('.asar/') ? ['--expose-internals'] : []), runner, input, result], { cwd: folder, env: { ...environment, ELECTRON_RUN_AS_NODE: '1' }, stdio: ['ignore', 'pipe', 'pipe'] });
-    const timer = setTimeout(() => child.kill('SIGTERM'), 70000);
+    const timer = setTimeout(() => child.kill('SIGTERM'), 110000);
     const abort = () => child.kill('SIGTERM'); signal?.addEventListener('abort', abort, { once: true });
     child.stdout.on('data', x => { log = (log + x).slice(-12000); }); child.stderr.on('data', x => { log = (log + x).slice(-12000); });
     child.once('error', fail); child.once('exit', code => { clearTimeout(timer); signal?.removeEventListener('abort', abort); done(code); });
@@ -30,7 +30,8 @@ export async function preflight(theme, { root, cli, signal, progress, screenshot
   await rm(input, { force: true }).catch(() => {});
   if (code !== 0 || !data.ok) throw new ThemeError('probe-failed', data.error || '隔离加载检查失败', { stage: 'isolated-load', findings: data.errors || [],
     report: { ...data.report, phase: data.phase, code: data.code, details: data.details, stack: data.stack } });
-  return { ...theme.report, ok: true, runtime: 'isolated-host', stage: 'ready', probe: { ...data, log: undefined }, checkedAt: new Date().toISOString() };
+  return { ...theme.report, warnings: [...(theme.report.warnings || []), ...(data.warnings || [])],
+    ok: true, runtime: 'isolated-host', stage: 'ready', probe: { ...data, log: undefined }, checkedAt: new Date().toISOString() };
 }
 export function resolveCli(ctx) {
   try {

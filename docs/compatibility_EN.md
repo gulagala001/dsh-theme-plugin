@@ -1,42 +1,56 @@
 # Compatibility
 
-The supported host is **DSH 0.2.1-rc.2**. Catalog inclusion, static inspection and runtime validation are separate facts. The full market has not been exercised individually.
+[简体中文](compatibility.md)
 
-| Format or source | Handling |
+The supported host is **DSH 0.2.1-rc.2**. Compatibility uses real current-host APIs. Stale catalog entries are checked for newer releases with matching package/repository identity; removed host APIs are not recreated.
+
+## Automatic handling
+
+| Theme format | Handling |
 | --- | --- |
-| Built-in appearances and legacy `.omd-skin.json` v1 | Layouts, palettes, backgrounds and advanced preferences |
-| `dsh-theme-plugin/v1` | Native tokens, local CSS/assets, image/video backgrounds and optional client |
-| Skin Center v2 | Styles, patches, previews, backgrounds, v1alpha1 hooks and semantic surfaces |
-| Native DSH ModuleLoader clients | Dependency checks, distinct module identity, lifecycle handling and isolated preflight |
-| Deep Whale | Checked local resource routes, customization v1/v2, preferences and time rules |
-| Dream Skin v1 exchange packages | Palette import; this exchange format does not carry a complete dynamic theme |
-| Existing native theme plugins | Discovery and management through DSH's native plugin lifecycle |
-| Themes requiring backend business services | Explicit service adapters or existing native linkage; arbitrary Node entry points are not executed |
+| Built-in appearances and `.omd-skin.json` v1 | Layouts, palettes, backgrounds and advanced preferences |
+| `dsh-theme-plugin/v1` | Tokens, local CSS, image/video backgrounds and optional dynamic clients |
+| Skin Center v2 | Styles, patches, previews, backgrounds and v1alpha1 hooks |
+| DSH ModuleLoader themes | Complete programs, closures and private modules, resource mapping and lifecycle ownership |
+| Source packages without built clients | JS/TS/JSX and declared dependencies are compiled without upstream installation scripts |
+| DSH theme backends | Real disposable Cordis contexts using current RPC, HTTP and configuration services |
+| Deep Whale | Original artwork, customization v1/v2, preferences and time rules |
+| Dream Skin v1 exchange packages | Their palette data; full dynamic plugins use the regular DSH theme flow |
+| Existing native themes | Automatic discovery and coordinated enable/disable through DSH, retaining original configuration |
 
-## Representative validation
+Downloads use fixed versions or commits. Incomplete source packages may use a published npm artifact with matching package, version and repository. If a selected newer release fails, the catalog's original version is also checked; fallback installation requires the same current-host checks. Dynamic features are not discarded and service responses are not fabricated to increase coverage.
 
-Validation used macOS, isolated DSH 0.2.1-rc.2 and Chromium. It does not establish Windows/Linux, every interaction or all plugin combinations.
+Downloads are limited to 256 MiB; extracted content to 512 MiB and 6,000 files. Local file imports are limited to 80 MiB. Original package files are retained separately from compiled/adapted output.
 
-- Workshop frutiger-aero: real download/install/apply, wallpaper, glass, palette rendering and switching.
-- Workshop Blue Fantasy: isolated hooks loading, light/dark, disposal and remount.
-- Open Sea 1.2.5: lifecycle after local asset-route adaptation; WebGPU quality remains hardware-dependent.
-- Aqua 1.3.0: lifecycle after adapting its older store module path.
-- Deep Whale maid-atelier and orca-link: lifecycle with local artwork and customization integration.
-- Existing Glyph: one canvas after adoption and clean deactivation when switching.
-- Legacy theme and preferences: original selection and custom naming migrate while original browser records remain intact.
+## What preflight checks
 
-The installed package's three settings pages and real market images were exercised. Both standalone CLI and the desktop-bundled CLI can run isolated preflight. Broken JSON, missing assets, path traversal and CSS hiding the shell are rejected; interrupted activation and failed updates have focused recovery checks.
+Each dynamic candidate gets its own disposable DSH profile and browser. Checks cover page loading, actual input, the settings entry, light/dark modes, client disposal/remount, backend stop/restart and reopening the page. Themes exposing native editable Config forms also undergo a configuration write. A broken candidate cannot contaminate the next candidate's host.
 
-Full Skin Center controller handoff, full coinstallation with other appearance controllers, and Windows/Linux device flows have not been validated. Existing Skin Center is linked natively with its current settings retained; its internal themes are not silently copied. Long-tail themes and service-dependent works are not marked fully compatible without corresponding evidence.
+Themes that alter boot HTML trigger a page refresh after switching. Unsent drafts and attachments defer that refresh. Installation failures retain the active appearance; activation failures restore the previous choice. Relevant host/adapter updates trigger rechecks while retaining theme files and configuration.
 
-## Market sources
+The 2026-10-20 batch used a fixed snapshot of **549 deduplicated catalog entries**, prepared each entry and exercised runnable candidates in the real host. Affected candidates were rerun after shared fixes: **454 passed basic runtime checks; 95 remained blocked**, including obsolete themes, unavailable/incomplete sources and runtime failures. Blocked entries are not counted as compatible. Live catalog totals change; inclusion is not a passing compatibility result.
 
-[DSH Skin Market](https://kingofsoysauce.github.io/dsh-skin-market/), [Workshop](https://dsh-market.com/), [A2H](https://dsh.a2hmarket.ai/) and [DSH community catalog](https://awesome-dsh-plugin.com/).
+| Representative theme | Validation |
+| --- | --- |
+| dsh-ads 0.1.3 | Real market download/install/apply, light/dark, native input/settings, disposal and remount |
+| ORCA Link 0.0.1 | Real market installation, original artwork, switching and recovery |
+| Dream Skin 10.20.0 | Current-host loading, native backend endpoints and lifecycle |
+| dsh-columbina-theme | Native configuration writes, validation and persistence after backend restart |
+| Open Sea, Catppuccin and Deep Whale | Assets and client/backend lifecycle on the corresponding fixed candidates |
 
-Duplicate package identities retain multiple sources. Unavailable feeds show cached or unavailable status. Missing previews are labeled. Downloads preserve author/source metadata and use fixed commits or release versions where available.
+The package was installed through DSH's native installer and coinstalled with OMD/OpenCU in an isolated macOS environment, checking one Appearance entry and three subpages. This does not validate every extra feature, long-running behavior, graphics device or third-party plugin combination. Windows/Linux devices have not been exercised.
 
-## Recovery and trust
+## Installation remains blocked when
 
-Unsupported formats, missing resources, unknown modules or failed isolated loading block installation and produce an AI repair task. Interrupted activation restores the previous selection. Host/adapter changes invalidate affected compatibility reports and trigger rechecks, preserving originals and preferences.
+- A theme requires obsolete DSH modules/services and has no working current-host version.
+- Required artwork, code or resources are missing and cannot be obtained from a matching release artifact.
+- Loading, configuration writes or reopening fail, or input/settings become unusable.
+- An unprepared local helper is required, or downloads/the checking environment are unavailable.
 
-Third-party browser themes retain normal page-script permissions. Preflight checks common compatibility failures, not malicious-code safety or every delayed behavior. Use trusted sources.
+Errors provide a specific reason and a copyable [AI repair task](ai-repair.md). Unavailable fonts retain the theme's browser fallback with a warning; missing required images, scripts and backend endpoints still block installation.
+
+## Markets and trust
+
+Sources: [DSH Skin Market](https://kingofsoysauce.github.io/dsh-skin-market/), [Workshop](https://dsh-market.com/), [A2H](https://dsh.a2hmarket.ai/) and the [DSH community catalog](https://awesome-dsh-plugin.com/). Duplicate identities retain their sources. Missing previews are labeled; failed feeds show cached or unavailable status.
+
+Third-party themes remain plugins: backends have normal Node/DSH capabilities, and browser scripts have page permissions. Disposable profiles detect compatibility faults; they are not a malicious-code sandbox or a guarantee about delayed behavior. Use trusted authors.

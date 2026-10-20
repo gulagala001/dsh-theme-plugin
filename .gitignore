@@ -2,6 +2,7 @@ node_modules/
 .local/
 .theme-validation/
 dist/
+lib/
 *.tgz
 *.log
 .DS_Store

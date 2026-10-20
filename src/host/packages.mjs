@@ -7,7 +7,7 @@ import { unzipSync } from 'fflate';
 import { download, fetchJson } from './network.mjs';
 import { inside, exists, json, walk, digest } from './files.mjs';
 import { ThemeError, slug } from '../shared/protocol.mjs';
-const MAX_BYTES = 160 * 1024 * 1024;
+const MAX_BYTES = 512 * 1024 * 1024;
 export async function publishedFallback(root, target, options = {}) {
   const pkg = await json(join(root, 'package.json'), {});
   const repository = value => String(typeof value === 'string' ? value : value?.url || '').replace(/^git\+/, '').replace(/\.git\/?$/, '').replace(/\/$/, '').toLowerCase();
@@ -95,16 +95,18 @@ const gitRefs = new Map();
 export async function resolveGitRef(repo, ref = 'HEAD', { signal } = {}) {
   if (/^[a-f0-9]{40}$/i.test(ref)) return ref;
   const key = `${repo}#${ref}`;
-  if (!gitRefs.has(key)) gitRefs.set(key, (async () => {
-    try { const value = await fetchJson(`https://api.github.com/repos/${repo}/commits/${encodeURIComponent(ref)}`, { signal }); if (/^[a-f0-9]{40}$/i.test(value.sha)) return value.sha; } catch {}
+  if (gitRefs.has(key) && Date.now() - gitRefs.get(key).at >= 600000) gitRefs.delete(key);
+  if (!gitRefs.has(key)) gitRefs.set(key, { at: Date.now(), value: (async () => {
+    try { const value = await fetchJson(`https://api.github.com/repos/${repo}/commits/${encodeURIComponent(ref)}`, { signal }); if (/^[a-f0-9]{40}$/i.test(value.sha)) return value.sha; }
+    catch (error) { if (signal?.aborted) throw error; }
     // Public Git advertisements do not consume the unauthenticated REST quota.
     const { bytes } = await download(`https://github.com/${repo}.git/info/refs?service=git-upload-pack`, { signal, limit: 8 * 1024 * 1024 });
     const refs = new Map([...bytes.toString('utf8').matchAll(/([a-f0-9]{40}) (HEAD|refs\/[^\s\0]+)/g)].map(x => [x[2], x[1]]));
     const sha = refs.get(ref) || refs.get(`refs/heads/${ref}`) || refs.get(`refs/tags/${ref}^{}`) || refs.get(`refs/tags/${ref}`);
     if (!sha) throw new ThemeError('source-version', `无法找到主题的源码版本：${repo}#${ref}`);
     return sha;
-  })().catch(e => { gitRefs.delete(key); throw e; }));
-  return gitRefs.get(key);
+  })().catch(e => { gitRefs.delete(key); throw e; }) });
+  return gitRefs.get(key).value;
 }
 export async function acquire(entry, target, { signal } = {}) {
   await mkdir(target, { recursive: true });
@@ -131,16 +133,16 @@ export async function acquire(entry, target, { signal } = {}) {
   let fetched, resolved = spec, sourceUrl = entry.repo || spec;
   if (git) {
     const ref = await resolveGitRef(git.repo, git.ref, { signal });
-    fetched = await download(`https://codeload.github.com/${git.repo}/tar.gz/${encodeURIComponent(ref)}`, { signal, limit: 80 * 1024 * 1024, timeout: 60000 });
+    fetched = await download(`https://codeload.github.com/${git.repo}/tar.gz/${encodeURIComponent(ref)}`, { signal, limit: 256 * 1024 * 1024, timeout: 90000 });
     resolved = ref;
   } else if (/^https:\/\//.test(spec || '')) {
-    fetched = await download(spec, { signal, limit: 80 * 1024 * 1024, timeout: 60000 });
+    fetched = await download(spec, { signal, limit: 256 * 1024 * 1024, timeout: 90000 });
   } else {
     const match = String(spec || '').match(/^(@[^/@\s]+\/[^/@\s]+|[^/@\s]+)(?:@([^/\s]+))?$/);
     if (!match) throw new ThemeError('install-source', '缺少可识别的主题下载来源');
     const manifest = await fetchJson(`https://registry.npmjs.org/${encodeURIComponent(match[1])}/${encodeURIComponent(match[2] || 'latest')}`, { signal });
     if (!manifest.dist?.tarball) throw new ThemeError('install-source', 'npm 主题缺少发行包');
-    fetched = await download(manifest.dist.tarball, { signal, limit: 80 * 1024 * 1024, timeout: 60000 });
+    fetched = await download(manifest.dist.tarball, { signal, limit: 256 * 1024 * 1024, timeout: 90000 });
     if (manifest.dist.integrity) {
       const { createHash } = await import('node:crypto');
       const values = manifest.dist.integrity.split(/\s+/);

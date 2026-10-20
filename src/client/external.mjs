@@ -157,17 +157,27 @@ export async function runProbe(ctx, theme) {
   window.addEventListener('error', onError); window.addEventListener('unhandledrejection', onError);
   window.__DTP_PROBE_ACTIVE__ = true;
   let dispose;
+  const backend = async action => {
+    if (!theme.backend) return;
+    const response = await fetch(`${API}/probe-backend`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action }) });
+    if (!response.ok) {
+      const failure = await response.json().catch(() => ({}));
+      throw Error(`主题后台${action === 'stop' ? '卸载' : action === 'check-settings' ? '设置保存' : '恢复'}失败：${failure.error || response.status}`);
+    }
+    return response.json();
+  };
   const step = async phase => {
     if (!window.__DTP_PROBE_INTERACTIVE__) return;
     const id = (window.__DTP_PROBE_STEP__?.id || 0) + 1;
     window.__DTP_PROBE_STEP__ = { id, phase };
-    const deadline = Date.now() + 18000;
+    const deadline = Date.now() + 30000;
     while (window.__DTP_PROBE_ACK__ !== id && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 50));
     if (window.__DTP_PROBE_ACK__ !== id) throw Error('主题的实际界面交互检查未完成');
     if (window.__DTP_PROBE_UI_ERROR__) throw Error(window.__DTP_PROBE_UI_ERROR__);
   };
   try {
     dispose = await mountExternal(ctx, theme);
+    const settings = await backend('check-settings');
     for (const mode of ['light', 'dark']) {
       ctx.theme.setTheme(mode);
       await new Promise(resolve => setTimeout(resolve, 700));
@@ -188,13 +198,17 @@ export async function runProbe(ctx, theme) {
       await step(mode);
     }
     await dispose(); dispose = null;
+    await backend('stop');
     await new Promise(resolve => setTimeout(resolve, 300));
     await step('disposed');
+    await backend('start');
+    await backend('check-settings');
     dispose = await mountExternal(ctx, theme);
     await new Promise(resolve => setTimeout(resolve, 500));
     await step('remount');
     if (errors.length) throw Error(errors[0]);
-    window.__DTP_PROBE_RESULT__ = { ok: true, checks: ['native-workspace-load', 'light-dark', 'native-input', 'native-settings', 'dispose', 'remount'], errors };
+    window.__DTP_PROBE_RESULT__ = { ok: true, checks: ['native-workspace-load', 'light-dark', 'native-input', 'native-settings', 'dispose', 'remount', ...(settings?.configurable ? ['native-settings-write'] : [])],
+      requiresReload: !!theme.backend?.requiresReload, errors };
   } catch (e) { window.__DTP_PROBE_RESULT__ = { ok: false, error: e.message, stack: e.stack, errors }; }
   finally { await dispose?.(); window.__DTP_PROBE_ACTIVE__ = false; window.removeEventListener('error', onError); window.removeEventListener('unhandledrejection', onError); window.removeEventListener('dtp:theme-error', customError); }
 }

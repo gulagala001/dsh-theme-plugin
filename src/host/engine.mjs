@@ -11,11 +11,13 @@ import { preflight, resolveCli } from './probe.mjs';
 import { atomic, digest, exists, json, inside, ownedFile } from './files.mjs';
 import { HOST_VERSION, VERSION, ThemeError, repairTask } from '../shared/protocol.mjs';
 import { needsRecheck, needsRuntimeProbe, isHostThemeService, isNativeThemeController } from '../shared/host-contract.mjs';
-import { ThemeBackends } from './theme-backend.mjs';
+import { NativeThemeBackends } from './native-backend.mjs';
+import { currentEntry } from './versions.mjs';
 export const publicTheme = theme => {
   if (!theme) return null;
   const { root, files, previousRevision, ...rest } = theme;
   if (rest.client) { const { factory, code, ...client } = rest.client; rest.client = client; }
+  if (rest.backend) { const { code, ...backend } = rest.backend; rest.backend = backend; }
   return rest;
 };
 export class ThemeEngine {
@@ -23,12 +25,7 @@ export class ThemeEngine {
     this.ctx = ctx; this.root = root; this.library = new Library(root); this.market = new Market(root);
     this.operations = new Map(); this.pendingThemes = new Map(); this.probe = probe; this.cli = resolveCli(ctx);
     this.controller = new AbortController();
-    const server = ctx.get('webServer'), connection = ctx.get('connection');
-    this.backends = new ThemeBackends(join(root, 'backends'), {
-      cli: this.cli,
-      register: server ? route => server.register(route) : undefined,
-      authorize: connection ? request => connection.requestRejection(request) : undefined,
-    });
+    this.backends = new NativeThemeBackends(ctx, join(root, 'backends'), { cli: this.cli });
   }
   async initialize() {
     await this.library.initialize();
@@ -86,7 +83,7 @@ export class ThemeEngine {
       for (const old of stale) {
         if (this.controller.signal.aborted) break;
         try {
-          const theme = await inspectTheme(old.entryFile ? join(old.root, old.entryFile) : old.root, { id: old.id, source: old.source, name: old.name });
+          const theme = await inspectTheme(old.entryFile ? join(old.root, old.entryFile) : old.root, { id: old.id, source: old.source, name: old.name, hostCli: this.cli });
           this.controller.signal.throwIfAborted();
           await this.commitCandidate(theme, () => {});
           await this.library.mutate(s => {
@@ -104,8 +101,17 @@ export class ThemeEngine {
     await this.initialization;
     this.controller.signal.throwIfAborted();
     if (this.library.state.pending?.deadline < Date.now()) await this.fail(this.library.state.pending.token, '主题启用超时，已恢复之前的外观。');
-    const state = await this.library.snapshot();
-    await this.backends.start(this.probe || this.theme(state.active, state.activeDigest));
+    let state = await this.library.snapshot();
+    try { await this.backends.start(this.probe || this.theme(state.active, state.activeDigest)); }
+    catch (error) {
+      if (this.probe) throw error;
+      await this.backends.retain([]);
+      await this.library.mutate(s => {
+        s.active = 'default'; s.activeDigest = undefined; s.pending = null;
+        s.recovery = { message: `主题恢复失败，已使用 DSH 原生外观：${error.message}`, at: Date.now() };
+      });
+      state = await this.library.snapshot();
+    }
     return { ...state, themes: state.themes.map(publicTheme), activeTheme: publicTheme(this.theme(state.active, state.activeDigest)), version: VERSION, hostVersion: HOST_VERSION,
       discoveryError: this.discoveryError, discovering: !!this.discovering, revalidating: !!this.revalidating, probe: this.probe ? publicTheme(this.probe) : null };
   }
@@ -128,9 +134,14 @@ export class ThemeEngine {
     })();
     return { id };
   }
-  async installEntry(entry, progress) {
+  async installEntry(entry, progress, { resolveVersion = true } = {}) {
+    const linked = entry.packageName && this.library.state.themes.find(t => t.linked?.packageName === entry.packageName);
+    if (linked) return { themes: [publicTheme(linked)] };
+    const original = entry;
     const staging = join(this.root, 'staging', randomUUID());
     try {
+    progress('查找适用于当前 DSH 的主题版本');
+    if (resolveVersion) entry = await currentEntry(entry, { signal: this.controller.signal });
     progress('下载主题与资源');
     const acquired = await acquire(entry, staging, { signal: this.controller.signal });
     const options = await candidates(acquired.root, entry);
@@ -138,12 +149,12 @@ export class ThemeEngine {
     const installed = [];
     for (const folder of options) {
       progress('检查主题格式、依赖与资源');
-      const meta = { ...entry, id: options.length === 1 ? entry.id : `${entry.id}-${digest(folder.slice(acquired.root.length)).slice(0, 8)}`, source: acquired.source };
+      const meta = { ...entry, hostCli: this.cli, id: options.length === 1 ? entry.id : `${entry.id}-${digest(folder.slice(acquired.root.length)).slice(0, 8)}`, source: { ...acquired.source, selectedFrom: entry.selectedFrom, fallbackFrom: entry.fallbackFrom } };
       let theme, published;
       try { theme = await inspectTheme(folder, meta); }
       catch (error) {
         if (!['client-build', 'client-entry-missing', 'client-syntax', 'client-format', 'client-import'].includes(error.code)) throw error;
-        progress('获取同作者、同版本的完整发行包');
+        progress('获取同包、同版本的完整发行包');
         published = await publishedFallback(folder, join(staging, 'published', meta.id), { signal: this.controller.signal }).catch(() => null);
         if (!published) throw error;
         theme = await inspectTheme(published.root, { ...meta, source: { ...published.source, original: acquired.source } });
@@ -156,7 +167,7 @@ export class ThemeEngine {
       try { installed.push(await this.commitCandidate(theme, progress)); }
       catch (error) {
         if (error.code !== 'probe-failed' || published) throw error;
-        progress('使用同作者同版本发行包重新检查');
+        progress('使用同包同版本发行包重新检查');
         published = await publishedFallback(folder, join(staging, 'published', meta.id), { signal: this.controller.signal }).catch(() => null);
         if (!published) throw error;
         const complete = await inspectTheme(published.root, { ...meta, source: { ...published.source, original: acquired.source } });
@@ -164,6 +175,13 @@ export class ThemeEngine {
       }
     }
     return { themes: installed.map(publicTheme) };
+    } catch (error) {
+      if (resolveVersion && entry.spec !== original.spec && !this.controller.signal.aborted) {
+        progress('新版未通过，检查目录中适用于当前 DSH 的版本');
+        try { return await this.installEntry({ ...original, fallbackFrom: { spec: entry.spec, version: entry.version, code: error.code || 'install-failed' } }, progress, { resolveVersion: false }); }
+        catch (fallbackError) { fallbackError.details = { ...fallbackError.details, newerAttempt: { spec: entry.spec, code: error.code, message: error.message } }; throw fallbackError; }
+      }
+      throw error;
     } finally { await rm(staging, { recursive: true, force: true }).catch(() => {}); }
   }
   async commitCandidate(theme, progress) {
@@ -172,6 +190,7 @@ export class ThemeEngine {
     try {
       progress(needsRuntimeProbe(theme) ? '在隔离 DSH 中验证加载与切换' : '校验完成，保存主题');
       theme.report = await preflight(theme, { root: this.root, cli: this.cli, signal: this.controller.signal, progress });
+      if (theme.backend && theme.report.probe?.requiresReload) theme.backend.requiresReload = true;
       this.controller.signal.throwIfAborted();
       const target = join(this.root, 'themes', theme.id, theme.digest);
       if (!await exists(target)) {
@@ -208,7 +227,7 @@ export class ThemeEngine {
     const installed = [];
     for (const path of list) {
       progress('检查导入主题');
-      const theme = await inspectTheme(path, { source: { spec: `local:${name}`, url: '', resolved: digest(bytes) } });
+      const theme = await inspectTheme(path, { hostCli: this.cli, source: { spec: `local:${name}`, url: '', resolved: digest(bytes) } });
       installed.push(await this.commitCandidate(theme, progress));
     }
     return { themes: installed.map(publicTheme) };
@@ -268,7 +287,7 @@ export class ThemeEngine {
             await this.library.add(theme);
             if (original.enabled && this.library.state.active === null) await this.library.mutate(s => { s.active = id; });
           } else {
-            theme = await inspectTheme(source.path, { id, source: { spec: 'existing-local', resolved: '' } });
+            theme = await inspectTheme(source.path, { id, hostCli: this.cli, source: { spec: 'existing-local', resolved: '' } });
             await this.commitCandidate(theme, () => {});
           }
         } catch (e) {
@@ -287,17 +306,16 @@ export class ThemeEngine {
   }
   async activate(id, { startup = false } = {}) {
     const candidate = await this.library.begin(id, { startup });
-    try { await this.backends.start(this.theme(id, candidate.digest)); }
-    catch (e) { await this.fail(candidate.token, e.message); throw e; }
-    candidate.theme = publicTheme(this.theme(id, candidate.digest));
-    candidate.previousTheme = publicTheme(this.theme(candidate.previous, candidate.previousDigest));
-    if (startup) return candidate;
-    const theme = this.theme(id), previous = this.theme(candidate.previous);
+    const theme = this.theme(id, candidate.digest), previous = this.theme(candidate.previous, candidate.previousDigest);
     try {
-      if (previous?.linked && previous.id !== id) {
-        await this.toggleLinked(previous, false);
+      if (!startup && previous?.linked && previous.id !== id) await this.toggleLinked(previous, false);
+      await this.backends.start(theme);
+      if (!startup && theme?.linked) {
+        await this.backends.retain([]);
+        await this.toggleLinked(theme, true);
       }
-      if (theme?.linked) await this.toggleLinked(theme, true);
+      candidate.theme = publicTheme(theme);
+      candidate.previousTheme = publicTheme(previous);
       return candidate;
     } catch (e) {
       await this.fail(candidate.token, e.message); throw e;
@@ -321,14 +339,15 @@ export class ThemeEngine {
   async fail(token, message) {
     if (this.library.state.pending?.token !== token) return;
     const previous = this.theme(this.library.state.pending?.previous, this.library.state.pending?.previousDigest), candidate = this.theme(this.library.state.pending?.id, this.library.state.pending?.digest);
+    await this.backends.retain([previous]);
     try { await this.restoreLinked(previous, candidate); } catch (e) { message += `；原生主题恢复：${e.message}`; }
     const result = await this.library.fail(token, message);
-    this.backends.retain([previous]);
+    await this.backends.start(previous);
     return result;
   }
   async commit(token) {
     await this.library.commit(token);
-    this.backends.retain([this.theme(this.library.state.active, this.library.state.activeDigest)]);
+    await this.backends.retain([this.theme(this.library.state.active, this.library.state.activeDigest)]);
   }
   dispose() { this.offReady?.(); this.controller.abort(); this.resolveInitialization?.(); this.backends.dispose(); }
 }

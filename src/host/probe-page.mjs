@@ -4,7 +4,7 @@ import { publicUrl } from './network.mjs';
 export async function probePage(browser, bootstrap, { screenshots } = {}) {
   const context = await browser.newContext({ serviceWorkers: 'block', viewport: { width: 1280, height: 900 } });
   let page, phase = 'boot';
-  const errors = [];
+  const errors = [], warnings = [];
   try {
   const origin = new URL(bootstrap).origin;
   const blocked = [];
@@ -17,13 +17,23 @@ export async function probePage(browser, bootstrap, { screenshots } = {}) {
   page = await context.newPage();
   await page.addInitScript(() => { window.__DTP_PROBE_MODE__ = true; });
   page.on('pageerror', e => errors.push(e.message));
-  page.on('response', response => { if (response.status() >= 400 && response.url().startsWith(origin + '/') && !response.url().endsWith('/favicon.ico')) errors.push(`加载失败 (${response.status()})：${new URL(response.url()).pathname}`); });
+  page.on('response', response => {
+    if (response.status() < 400 || !response.url().startsWith(origin + '/') || response.url().endsWith('/favicon.ico')) return;
+    const path = new URL(response.url()).pathname;
+    // The probe client reports this endpoint's structured failure itself.
+    if (path === '/api/dsh-theme-plugin/probe-backend') return;
+    if (response.request().resourceType() === 'font') warnings.push(`上游字体不可用，浏览器使用原主题声明的字体回退：${path}`);
+    else errors.push(`加载失败 (${response.status()})：${path}`);
+  });
   const probeUrl = new URL(bootstrap); probeUrl.searchParams.set('theme-probe', '1');
   await page.goto(probeUrl.href, { timeout: 25000, waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => window.__DTP_PROBE_READY__ || window.__DTP_PROBE_RESULT__, null, { timeout: 25000 });
   phase = 'onboarding';
   const early = await page.evaluate(() => window.__DTP_PROBE_RESULT__);
   if (early) return { ...early, errors };
+  // Startup themes may intentionally wait for the first user interaction.
+  // Dismiss through a normal key event, never click through an obscuring UI.
+  await page.keyboard.press('Escape');
   const proceed = page.getByRole('button', { name: '继续', exact: true });
   const addKey = page.getByRole('button', { name: '添加 API Key', exact: true });
   await proceed.or(addKey).first().waitFor({ state: 'visible', timeout: 12000 });
@@ -45,9 +55,13 @@ export async function probePage(browser, bootstrap, { screenshots } = {}) {
     phase = state.step.phase;
     let error;
     try {
+      await page.keyboard.press('Escape');
+      const health = await page.evaluate(async () => (await fetch('/', { cache: 'no-store' })).status);
+      if (health !== 200) throw Error(`宿主页面重新加载返回 ${health}`);
+      const interactionTimeout = state.step.phase === 'disposed' ? 3500 : 10000;
       const input = page.locator('[data-composer-input]').first();
-      await input.fill('主题兼容检查', { timeout: 3500 }); await input.fill('');
-      await page.getByRole('button', { name: '账号菜单', exact: true }).click({ timeout: 3500 });
+      await input.fill('主题兼容检查', { timeout: interactionTimeout }); await input.fill('');
+      await page.getByRole('button', { name: '账号菜单', exact: true }).click({ timeout: interactionTimeout });
       await page.getByRole('menuitem', { name: '设置', exact: true }).click({ timeout: 3500 });
       await page.getByRole('button', { name: '外观', exact: true }).first().waitFor({ state: 'visible', timeout: 3500 });
       await page.keyboard.press('Escape');
@@ -56,7 +70,7 @@ export async function probePage(browser, bootstrap, { screenshots } = {}) {
     await page.evaluate(({ id, error }) => { window.__DTP_PROBE_UI_ERROR__ = error; window.__DTP_PROBE_ACK__ = id; }, { id: step, error });
   }
   const report = await page.evaluate(() => window.__DTP_PROBE_RESULT__);
-  const result = { ...report, errors: [...errors, ...(report.errors || []), ...[...new Set(blocked)].map(url => `主题依赖尚未打包的外部资源：${url}`)] };
+  const result = { ...report, warnings: [...new Set(warnings)], errors: [...errors, ...(report.errors || []), ...[...new Set(blocked)].map(url => `主题依赖尚未打包的外部资源：${url}`)] };
   if (result.errors.length) { result.ok = false; result.error = result.errors[0]; }
   return result;
   } catch (e) {

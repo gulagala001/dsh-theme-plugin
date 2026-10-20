@@ -41,15 +41,17 @@ node scripts/theme.mjs pack ./my-theme ./my-theme.zip
 
 ## 动态入口
 
-原生主题可保留 `package.json` 的 `dsh.client` 与 `exports["./client"]`。v1 包也可声明 `client: { "entry": "lib/client.js" }`。入口是单一 DSH `window.__ModuleLoader__.load({ id, factory })` 注册，其模块导出 `apply(ctx)` 与 `inject`。
+原生主题可保留 `package.json` 的 `dsh.client` 与 `exports["./client"]`。v1 包也可声明 `client: { "entry": "lib/client.js" }`。保留完整 DSH `window.__ModuleLoader__.load({ id, factory })` 程序、闭包与同包内部注册，选择匹配包标识的入口，其模块导出 `apply(ctx)` 与 `inject`。只有源码的标准 JS／JSX／TS／TSX 入口可自动编译，按声明解析并固定实际依赖，不执行包安装脚本。
 
-所有监听、计时器、观察器、样式与 DOM 副作用必须通过 `ctx.effect` 或返回的 disposer 清理。不得替换宿主根槽、吞掉所有输入事件或留下无法卸载的全局状态。依赖必须由匹配宿主提供或在客户端构建时打包；相对 `require`、Node 内置模块和未识别依赖会阻断安装。
+所有监听、计时器、观察器、样式与 DOM 副作用必须通过 `ctx.effect` 或返回的 disposer 清理。可使用宿主公开插槽，但替换布局后必须保留输入、设置与恢复入口。不能吞掉所有输入或留下无法卸载的全局状态。相对模块和已声明的浏览器依赖会自动打包；客户端不能导入 Node 内置模块。
 
-第三方 Node 主入口不会被执行。已有静态资源服务通过已核对的兼容器映射；依赖真实后台业务服务的主题需要专用适配或保留原生安装联动，不能伪造服务响应。
+后台入口会先准备为当前宿主可加载的模块，并在隔离 DSH profile 中验证。安装启用后运行于真实 Cordis 子上下文，使用当前 DSH 的服务、原生 RPC 和资源接口；停止主题时释放自身注册。不会重新实现旧版 settings、会话或工具服务，也不伪造 API 响应。主题与普通 DSH 插件具有相应运行权限，预检不构成恶意代码安全沙箱。
 
 Skin Center hooks v1alpha1 与 Deep Whale customization v1/v2 沿用上游接口。当前 v1 的任意 `settings` 声明尚未实现自动控件生成；动态主题可通过受支持的上游 customization 事件声明控件，或注册宿主原生设置。
 
 ## 维护 DSH 适配
+
+适配以支持的 DSH 版本为基准，过老主题需上游更新，不持续增建旧接口。
 
 1. 在隔离依赖/profile 中安装目标宿主，读取实际服务和类型定义。
 2. 更新 `src/shared/host-contract.mjs`；模块迁移集中于 `src/host/client-modules.mjs`，页面定位集中于 `semantic.mjs`，资源服务集中于 `client-assets.mjs`。

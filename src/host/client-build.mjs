@@ -1,6 +1,6 @@
 import { readFile, realpath } from 'node:fs/promises';
 import { relative, resolve } from 'node:path';
-import { build } from 'esbuild';
+import { build } from 'esbuild-wasm';
 import { parse } from 'acorn';
 import { simple } from 'acorn-walk';
 import { buildDependencies } from './build-dependencies.mjs';

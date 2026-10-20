@@ -7,14 +7,14 @@ import { ThemeError } from '../shared/protocol.mjs';
 import { exists, json } from './files.mjs';
 import { validationBrowser } from './browser.mjs';
 import { needsRuntimeProbe } from '../shared/host-contract.mjs';
-export async function preflight(theme, { root, cli, signal, progress } = {}) {
+export async function preflight(theme, { root, cli, signal, progress, screenshots } = {}) {
   if (!needsRuntimeProbe(theme)) return { ...theme.report, ok: true };
   if (!cli || !await exists(cli)) throw new ThemeError('probe-host-unavailable', '无法找到匹配宿主的隔离检查入口，尚未安装此主题', { stage: 'isolated-load' });
   const browserPath = await validationBrowser(root, { signal, progress });
   const folder = join(root, 'probes', randomUUID());
   await mkdir(folder, { recursive: true });
   const input = join(folder, 'input.json'), result = join(folder, 'result.json');
-  await writeFile(input, JSON.stringify({ theme, cli, folder, browserPath, plugin: resolve(import.meta.dirname, '../..') }), { mode: 0o600 });
+  await writeFile(input, JSON.stringify({ theme, cli, folder, browserPath, plugin: resolve(import.meta.dirname, '../..'), screenshots }), { mode: 0o600 });
   const runner = resolve(import.meta.dirname, 'probe-runner.mjs');
   const environment = Object.fromEntries(['PATH', 'SystemRoot', 'WINDIR', 'COMSPEC', 'PATHEXT', 'LANG', 'LC_ALL', 'PLAYWRIGHT_BROWSERS_PATH'].filter(k => process.env[k] !== undefined).map(k => [k, process.env[k]]));
   let log = '';
@@ -28,7 +28,8 @@ export async function preflight(theme, { root, cli, signal, progress } = {}) {
   const data = await json(result, { ok: false, error: '隔离加载没有完成，主题未安装。' });
   await rm(join(folder, 'home'), { recursive: true, force: true }).catch(() => {});
   await rm(input, { force: true }).catch(() => {});
-  if (code !== 0 || !data.ok) throw new ThemeError('probe-failed', data.error || '隔离加载检查失败', { stage: 'isolated-load', findings: data.errors || [], report: data.report || {} });
+  if (code !== 0 || !data.ok) throw new ThemeError('probe-failed', data.error || '隔离加载检查失败', { stage: 'isolated-load', findings: data.errors || [],
+    report: { ...data.report, phase: data.phase, code: data.code, details: data.details, stack: data.stack } });
   return { ...theme.report, ok: true, runtime: 'isolated-host', stage: 'ready', probe: { ...data, log: undefined }, checkedAt: new Date().toISOString() };
 }
 export function resolveCli(ctx) {

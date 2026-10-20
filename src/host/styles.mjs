@@ -19,6 +19,12 @@ export function transformCss(source, { id, file = 'skin.css', assets = new Set()
       if (node.type !== 'function' || node.value.toLowerCase() !== 'url') return;
       const raw = valueParser.stringify(node.nodes).trim().replace(/^['"]|['"]$/g, '');
       if (raw.startsWith('#') || /^data:(?:image\/(?:png|jpeg|gif|webp|svg\+xml)|font\/(?:woff2?|ttf|otf));base64,[a-z0-9+/=\s]+$/i.test(raw)) return;
+      if (/^data:image\/svg\+xml(?:;charset=[\w-]+)?,/i.test(raw)) {
+        let svg;
+        try { svg = decodeURIComponent(raw.slice(raw.indexOf(',') + 1)); } catch { throw new ThemeError('resource-data', '主题的 SVG 数据地址编码无效'); }
+        if (!/<svg[\s>]/i.test(svg) || /<script[\s>]|<foreignObject[\s>]|\bon\w+\s*=|(?:href|src)\s*=\s*['"]?\s*(?:https?:|javascript:|\/\/)/i.test(svg)) throw new ThemeError('resource-data', '主题 SVG 数据包含脚本或外部引用');
+        return;
+      }
       if (/^(?:[a-z]+:|\/\/|\/)|\\|\0/i.test(raw)) throw new ThemeError('remote-resource', `主题样式引用了未打包的外部资源：${raw.slice(0, 160)}`, { file });
       const name = posix.normalize(posix.join(posix.dirname(file), raw.split(/[?#]/)[0]));
       if (name.startsWith('../') || !assets.has(name)) throw new ThemeError('resource-missing', `主题缺少资源：${name}`, { file, resource: name });

@@ -1,7 +1,7 @@
 import { join, resolve, extname, relative } from 'node:path';
 import { readFile, stat } from 'node:fs/promises';
 import { ThemeEngine, publicTheme } from './host/engine.mjs';
-import { ownedFile, digest, json } from './host/files.mjs';
+import { ownedFile, digest, json, atomic } from './host/files.mjs';
 import { API, ThemeError, repairTask } from './shared/protocol.mjs';
 export const name = '@gulagala001/dsh-theme-plugin';
 export const inject = ['webServer', 'connection'];
@@ -25,9 +25,13 @@ export async function apply(ctx, config = {}) {
   }
   const root = config.storageDir || join(home, 'dsh-theme-plugin', digest(profile?.dir || 'default').slice(0, 16));
   const engine = new ThemeEngine(ctx, root, { probe });
-  let bootError;
-  try { await engine.initialize(); } catch (e) { bootError = e.message; ctx.logger?.warn(`主题库恢复失败，已保留原数据：${e.message}`); }
   ctx.effect(() => () => engine.dispose());
+  let bootError, initialized = false;
+  const preferenceWrites = new Map();
+  try { await engine.initialize(); } catch (e) { bootError = e.message; ctx.logger?.warn(`主题库恢复失败，已保留原数据：${e.message}`); }
+  // Native restoration waits for the host to finish loading; answer state
+  // requests at once meanwhile instead of holding them open.
+  void Promise.resolve(engine.initialization).finally(() => { initialized = true; });
   ctx.effect(() => ctx.webServer.register({ kind: 'prefix', path: API, handler: async (req, res) => {
     const rejection = ctx.connection.requestRejection(req);
     if (rejection !== undefined) { res.writeHead(rejection); res.end(); return; }
@@ -38,11 +42,22 @@ export async function apply(ctx, config = {}) {
         res.writeHead(200, { 'Content-Type': MIME[extname(file)] || 'application/octet-stream', 'Cache-Control': 'public, max-age=86400', 'X-Content-Type-Options': 'nosniff' }); res.end(await readFile(file)); return;
       }
       if (bootError) { send(res, 503, { error: bootError, code: 'library-unavailable', repair: repairTask({ error: { message: bootError, code: 'library-unavailable' } }) }); return; }
+      if (!initialized && path === '/state') { send(res, 503, { error: '正在恢复主题…', code: 'restoring' }); return; }
+      await engine.initialization;
+      engine.controller.signal.throwIfAborted();
+      if (path.startsWith('/backend/')) {
+        const [, , id, hash, ...parts] = path.split('/'), theme = engine.theme(id, hash);
+        if (!theme?.backend) throw new ThemeError('theme-missing', '主题服务版本不存在');
+        const allowed = [engine.probe?.id, engine.library.state.active, engine.library.state.pending?.id, engine.library.state.pending?.previous];
+        if (!allowed.includes(id)) throw new ThemeError('theme-inactive', '主题后台尚未启用');
+        await engine.backends.proxy(theme, '/' + parts.join('/') + url.search, req, res); return;
+      }
       if (path.startsWith('/client/')) {
         const [, , id, hash] = path.split('/'), theme = engine.theme(id, hash);
         if (!theme?.client) throw new ThemeError('theme-missing', '主题客户端版本不存在');
         const bytes = await readFile(await ownedFile(theme.root, theme.client.path));
         if (digest(bytes) !== theme.files[theme.client.path]) throw new ThemeError('resource-changed', '主题入口在检查后发生变化，请重新导入');
+        await engine.backends.start(theme);
         res.writeHead(200, { 'Content-Type': 'text/javascript', 'Cache-Control': 'private, max-age=31536000, immutable', 'X-Content-Type-Options': 'nosniff' });
         res.end(theme.client.code); return;
       }
@@ -65,6 +80,24 @@ export async function apply(ctx, config = {}) {
       }
       if (req.method !== 'POST') { send(res, 405, { error: 'POST required' }); return; }
       const data = await body(req);
+      if (path === '/preferences') {
+        if (!engine.theme(data.id) || typeof data.namespace !== 'string' || data.namespace.length > 200) throw new ThemeError('settings-scope', '主题设置范围无效');
+        const file = join(root, 'preferences', data.id, digest(data.namespace) + '.json');
+        const update = (preferenceWrites.get(file) || Promise.resolve()).catch(() => {}).then(async () => {
+          const value = await json(file, {});
+          if (data.field !== undefined) {
+            if (typeof data.field !== 'string' || ['__proto__', 'constructor', 'prototype'].includes(data.field)) throw new ThemeError('settings-field', '主题设置字段无效');
+            if (data.unset) delete value[data.field]; else value[data.field] = data.value;
+            if (JSON.stringify(value).length > 4 * 1024 * 1024) throw new ThemeError('settings-size', '主题设置超过大小限制');
+            await atomic(file, value);
+          }
+          return value;
+        });
+        preferenceWrites.set(file, update);
+        try { send(res, 200, { value: await update }); }
+        finally { if (preferenceWrites.get(file) === update) preferenceWrites.delete(file); }
+        return;
+      }
       if (path === '/state') { send(res, 200, await engine.state()); return; }
       if (path === '/catalog') { send(res, 200, await engine.market.catalog(data.refresh === true)); return; }
       if (path === '/theme') {
@@ -79,7 +112,7 @@ export async function apply(ctx, config = {}) {
       if (path === '/import') { send(res, 202, engine.start(progress => engine.importData(data, progress), { theme: { name: data.name } })); return; }
       if (path === '/discover') { send(res, 202, engine.start(async () => { await engine.discover(); return engine.state(); })); return; }
       if (path === '/activate') { send(res, 200, await engine.activate(data.id, { startup: data.startup === true })); return; }
-      if (path === '/commit') { await engine.library.commit(data.token); send(res, 200, await engine.state()); return; }
+      if (path === '/commit') { await engine.commit(data.token); send(res, 200, await engine.state()); return; }
       if (path === '/fail') { await engine.fail(data.token, String(data.message || '主题加载失败').slice(0, 2000)); send(res, 200, await engine.state()); return; }
       if (path === '/remove') { await engine.library.remove(data.id); send(res, 200, await engine.state()); return; }
       if (path === '/export') {

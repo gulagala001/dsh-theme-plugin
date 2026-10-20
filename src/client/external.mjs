@@ -1,5 +1,7 @@
 import { API } from '../shared/protocol.mjs';
 import { semanticAdapter } from './semantic.mjs';
+import { createThemeScope } from './theme-scope.mjs';
+import { themeSettings } from './theme-settings.mjs';
 const script = url => new Promise((done, fail) => {
   const el = document.createElement('script'); el.src = url; el.async = true;
   el.onload = () => { el.remove(); done(); }; el.onerror = () => { el.remove(); fail(Error('主题客户端资源无法加载')); };
@@ -7,10 +9,13 @@ const script = url => new Promise((done, fail) => {
 });
 export async function mountExternal(ctx, theme) {
   if (theme.linked) return () => {};
-  const nativeFrame = ctx.slots.entriesOfSlot('root')[0];
   const cleanups = [], root = document.documentElement;
-  let disposed = false;
-  const cleanup = () => { if (disposed) return; disposed = true; const errors = []; for (const fn of cleanups.reverse()) try { fn(); } catch (e) { errors.push(e); } if (errors.length) console.warn('主题资源清理失败', errors); };
+  let disposed = false, cleanupPromise;
+  const cleanup = () => cleanupPromise ||= (async () => {
+    if (disposed) return; disposed = true; const errors = [];
+    for (const fn of cleanups.reverse()) try { await fn(); } catch (e) { errors.push(e); }
+    if (errors.length) console.warn('主题资源清理失败', errors);
+  })();
   const ownAttribute = (element, key, value) => {
     const prior = element.getAttribute(key); element.setAttribute(key, value);
     cleanups.push(() => { if (element.getAttribute(key) === value) { if (prior === null) element.removeAttribute(key); else element.setAttribute(key, prior); } });
@@ -80,8 +85,20 @@ export async function mountExternal(ctx, theme) {
     if (theme.client) {
       const modules = ctx.get('modules');
       if (!modules?.import) throw Error('当前 DSH 没有动态主题模块接口');
+      const scope = createThemeScope(theme);
+      const compatibilityServices = ctx.get('settingsScope') ? {} : { settingsScope: themeSettings(theme, scope) };
+      const scopes = window.__DTP_THEME_SCOPES__ ||= new Map();
+      scopes.set(theme.client.moduleId, scope);
+      cleanups.push(() => { scope.dispose(); scopes.delete(theme.client.moduleId); });
       for (const name of theme.client.requires || []) {
-        try { await modules.import(name); } catch { throw Error(`当前宿主缺少主题所需模块：${name}`); }
+        try { scope.modules.set(name, scope.adaptModule(name, await modules.import(name))); }
+        catch {
+          if (/^@deepseek-ai\/[^/]+\/client$/.test(name)) {
+            try { scope.modules.set(name, await modules.import(name.replace(/\/client$/, ''))); } catch {}
+          }
+          // Optional imports inside the original factory's try/catch retain
+          // their own fallback. A required import still throws when invoked.
+        }
       }
       await script(theme.client.url);
       const stylesBefore = new Set(document.querySelectorAll('style[data-plugin-css]'));
@@ -93,28 +110,45 @@ export async function mountExternal(ctx, theme) {
       const mod = await modules.import(theme.client.moduleId);
       const component = typeof mod.apply === 'function' ? mod : mod.default;
       if (typeof component?.apply !== 'function') throw Error('主题客户端没有 apply(ctx) 入口');
-      const asked = Array.isArray(component.inject) ? component.inject : Object.keys(component.inject || {});
-      const required = asked.filter(key => !ctx.get(key));
+      const asked = Array.isArray(component.inject) ? component.inject : Object.entries(component.inject || {}).filter(([, value]) => value === true || (value && value.required !== false)).map(([key]) => key);
+      const required = asked.filter(key => !ctx.get(key) && !compatibilityServices[key]);
       if (required.length) throw Error(`主题需要当前宿主未提供的服务：${required.join('、')}`);
       let applied, failed;
       const ready = new Promise((done, fail) => { applied = done; failed = fail; });
-      const fiber = ctx.plugin({ name: `theme-${theme.id}`, inject: component.inject || [], async apply(child) {
-        try { const release = await component.apply(child); if (typeof release === 'function') child.effect(() => release); applied(); }
+      const injection = Array.isArray(component.inject) ? component.inject.filter(key => !compatibilityServices[key]) :
+        Object.fromEntries(Object.entries(component.inject || {}).filter(([key]) => !compatibilityServices[key]));
+      const fiber = ctx.plugin({ name: `theme-${theme.id}`, inject: injection, async apply(child) {
+        // Older themes use the former per-plugin dispose event. Cordis 4
+        // owns cleanup through effects; keep the original callback semantics.
+        const compatible = new Proxy(child, { get(target, key) {
+          if (key === 'get') return name => scope.adaptService(name, target.get(name) || compatibilityServices[name]);
+          if (Object.hasOwn(compatibilityServices, key)) return compatibilityServices[key];
+          if (key === 'on') return (event, fn, ...args) => {
+            if (event !== 'dispose') return target.on(event, fn, ...args);
+            let pending = true;
+            target.effect(() => () => { if (pending) { pending = false; return fn(); } });
+            return () => { pending = false; };
+          };
+          return scope.adaptService(key, Reflect.get(target, key, target));
+        } });
+        try { const release = await component.apply(compatible); if (typeof release === 'function') child.effect(() => release); applied(); }
         catch (e) { failed(e); throw e; }
       } });
-      cleanups.push(() => fiber.dispose());
       cleanups.push(() => modules.invalidate?.(theme.client.moduleId));
+      cleanups.push(() => fiber.dispose());
+      // Stop theme-owned callbacks and registrations while the Cordis
+      // context is still active, then await its disposal before reimport.
+      cleanups.push(() => scope.dispose());
       let timer;
       try { await Promise.race([ready, new Promise((_, fail) => { timer = setTimeout(() => fail(Error('主题初始化超时')), 10000); })]); }
       finally { clearTimeout(timer); }
     }
     if (theme.client || theme.hooks) await new Promise(resolve => setTimeout(resolve, 120));
-    if (ctx.slots.entriesOfSlot('root')[0] !== nativeFrame) throw Error('主题替换了 DSH 核心布局，需要改用主题接口或局部插槽适配，未应用');
     if (customizationErrors.length) throw Error(customizationErrors[0]);
     window.removeEventListener('dtp:theme-error', onCustomizationError);
     window.removeEventListener('error', onLoadError); window.removeEventListener('unhandledrejection', onLoadError);
     return cleanup;
-  } catch (e) { cleanup(); throw e; }
+  } catch (e) { await cleanup(); throw e; }
 }
 export async function runProbe(ctx, theme) {
   const errors = [], onError = e => errors.push(e.message || e.reason?.message || String(e.reason));
@@ -123,6 +157,15 @@ export async function runProbe(ctx, theme) {
   window.addEventListener('error', onError); window.addEventListener('unhandledrejection', onError);
   window.__DTP_PROBE_ACTIVE__ = true;
   let dispose;
+  const step = async phase => {
+    if (!window.__DTP_PROBE_INTERACTIVE__) return;
+    const id = (window.__DTP_PROBE_STEP__?.id || 0) + 1;
+    window.__DTP_PROBE_STEP__ = { id, phase };
+    const deadline = Date.now() + 18000;
+    while (window.__DTP_PROBE_ACK__ !== id && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 50));
+    if (window.__DTP_PROBE_ACK__ !== id) throw Error('主题的实际界面交互检查未完成');
+    if (window.__DTP_PROBE_UI_ERROR__) throw Error(window.__DTP_PROBE_UI_ERROR__);
+  };
   try {
     dispose = await mountExternal(ctx, theme);
     for (const mode of ['light', 'dark']) {
@@ -142,13 +185,16 @@ export async function runProbe(ctx, theme) {
         const style = getComputedStyle(element);
         if (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity) < .05) throw Error('主题隐藏了宿主界面，未安装');
       }
+      await step(mode);
     }
-    dispose(); dispose = null;
+    await dispose(); dispose = null;
     await new Promise(resolve => setTimeout(resolve, 300));
+    await step('disposed');
     dispose = await mountExternal(ctx, theme);
     await new Promise(resolve => setTimeout(resolve, 500));
+    await step('remount');
     if (errors.length) throw Error(errors[0]);
-    window.__DTP_PROBE_RESULT__ = { ok: true, checks: ['native-host-load', 'light-dark', 'dispose', 'remount'], errors };
-  } catch (e) { window.__DTP_PROBE_RESULT__ = { ok: false, error: e.message, errors }; }
-  finally { dispose?.(); window.__DTP_PROBE_ACTIVE__ = false; window.removeEventListener('error', onError); window.removeEventListener('unhandledrejection', onError); window.removeEventListener('dtp:theme-error', customError); }
+    window.__DTP_PROBE_RESULT__ = { ok: true, checks: ['native-workspace-load', 'light-dark', 'native-input', 'native-settings', 'dispose', 'remount'], errors };
+  } catch (e) { window.__DTP_PROBE_RESULT__ = { ok: false, error: e.message, stack: e.stack, errors }; }
+  finally { await dispose?.(); window.__DTP_PROBE_ACTIVE__ = false; window.removeEventListener('error', onError); window.removeEventListener('unhandledrejection', onError); window.removeEventListener('dtp:theme-error', customError); }
 }

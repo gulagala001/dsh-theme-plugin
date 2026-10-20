@@ -18,7 +18,7 @@ const repository = value => {
 };
 const repositoryKey = item => {
   const key = repository(item.repo);
-  const path = item.subdir || String(item.spec || '').match(/&path:\/?(.+)$/)?.[1];
+  const path = item.subdir || String(item.spec || '').match(/[#&]path:\/?([^&]+)$/)?.[1];
   return key.split('/').length === 2 && path ? `${key}/${path.replace(/^\/+|\/+$/g, '')}` : key;
 };
 function entry(source, item) {

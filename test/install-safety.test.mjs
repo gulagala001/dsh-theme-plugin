@@ -13,6 +13,46 @@ import { adaptClientModules } from '../src/host/client-modules.mjs';
 import { normalizeSetting, scheduleVisible } from '../src/client/customization.mjs';
 import { isHostThemeService } from '../src/shared/host-contract.mjs';
 const temporary = async fn => { const root = await mkdtemp(join(tmpdir(), 'dtp-check-')); try { return await fn(root); } finally { await rm(root, { recursive: true, force: true }); } };
+test('startup does not await native preset inventory before the host is ready', () => temporary(async root => {
+  let onReady, hostReady = false, reads = 0, releaseInventory;
+  const inventory = new Promise(resolve => { releaseInventory = resolve; });
+  const services = {
+    appReady: { onReady(callback) { onReady = callback; return () => { onReady = null; }; } },
+    pluginManager: {
+      async listBundles() { assert.equal(hostReady, true); return []; },
+      async listPlugins() { reads++; await inventory; return []; },
+    },
+  };
+  const engine = new ThemeEngine({ get: key => services[key] }, root);
+  try {
+    await engine.initialize();
+    assert.equal(reads, 0);
+    let exposed = false;
+    const state = engine.state().then(value => { exposed = true; return value; });
+    hostReady = true; onReady();
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(reads, 1);
+    assert.equal(exposed, false);
+    releaseInventory();
+    assert.equal((await state).version, '0.1.0-dsh.0.2.1-rc.2');
+    await engine.discovery;
+  } finally { releaseInventory(); engine.dispose(); }
+}));
+test('unloading before host readiness cancels deferred theme discovery', () => temporary(async root => {
+  let callback, unsubscribed = false, reads = 0;
+  const services = {
+    appReady: { onReady(fn) { callback = fn; return () => { unsubscribed = true; }; } },
+    pluginManager: { async listBundles() { reads++; return []; } },
+  };
+  const engine = new ThemeEngine({ get: key => services[key] }, root);
+  await engine.initialize();
+  engine.dispose();
+  callback();
+  await engine.initialization;
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(unsubscribed, true);
+  assert.equal(reads, 0);
+}));
 test('archives cannot write outside their staging directory', () => temporary(async root => {
   const zip = zipSync({ '../escaped.txt': strToU8('bad') });
   await assert.rejects(extract(zip, root), /越过/);

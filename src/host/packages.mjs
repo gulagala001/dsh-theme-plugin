@@ -8,9 +8,30 @@ import { download, fetchJson } from './network.mjs';
 import { inside, exists, json, walk, digest } from './files.mjs';
 import { ThemeError, slug } from '../shared/protocol.mjs';
 const MAX_BYTES = 160 * 1024 * 1024;
-export async function extract(bytes, folder) {
+export async function publishedFallback(root, target, options = {}) {
+  const pkg = await json(join(root, 'package.json'), {});
+  const repository = value => String(typeof value === 'string' ? value : value?.url || '').replace(/^git\+/, '').replace(/\.git\/?$/, '').replace(/\/$/, '').toLowerCase();
+  if (!pkg.name || !pkg.version || !repository(pkg.repository)) return null;
+  let manifest;
+  try { manifest = await fetchJson(`https://registry.npmjs.org/${encodeURIComponent(pkg.name)}/${encodeURIComponent(pkg.version)}`, options); }
+  catch (e) { if (e.details?.status === 404) return null; throw e; }
+  // A package with the same name is not necessarily the same author's theme.
+  if (manifest.name !== pkg.name || manifest.version !== pkg.version || repository(manifest.repository) !== repository(pkg.repository)) return null;
+  return acquire({ spec: `${pkg.name}@${pkg.version}` }, target, options);
+}
+export async function extract(bytes, folder, { subdir = '' } = {}) {
   await mkdir(folder, { recursive: true });
-  let count = 0, total = 0;
+  let count = 0, total = 0, archiveRoot;
+  if (subdir) inside(folder, subdir);
+  const included = name => {
+    const clean = name.replace(/^\.\//, ''), parts = clean.split('/');
+    inside(folder, clean);
+    if (parts.some(part => ['node_modules', '.git', '.local', '__MACOSX'].includes(part))) return false;
+    if (!subdir) return true;
+    archiveRoot ||= parts[0];
+    const relative = parts.slice(1).join('/');
+    return relative === subdir || relative.startsWith(subdir.replace(/\/$/, '') + '/');
+  };
   const save = async (name, data) => {
     if (!name || name.endsWith('/')) return;
     if (++count > 6000 || (total += data.length) > MAX_BYTES) throw new ThemeError('archive-size', '主题解压后超过大小限制');
@@ -20,7 +41,7 @@ export async function extract(bytes, folder) {
   if (bytes[0] === 0x50 && bytes[1] === 0x4b) {
     let expanded = 0, entries = 0;
     const files = unzipSync(bytes, { filter: file => {
-      inside(folder, file.name);
+      if (!included(file.name)) return false;
       expanded += file.originalSize; entries++;
       if (entries > 6000 || expanded > MAX_BYTES) throw new ThemeError('archive-size', '主题压缩包展开大小超过限制');
       return !file.name.endsWith('/');
@@ -31,6 +52,7 @@ export async function extract(bytes, folder) {
     await new Promise((resolvePromise, reject) => {
       parser.on('entry', (header, stream, next) => {
         (async () => {
+          if (!included(header.name)) { stream.resume(); stream.on('end', next); return; }
           if (!['file', 'directory'].includes(header.type)) throw new ThemeError('archive-type', `不支持的主题归档条目：${header.name}`);
           inside(folder, header.name.replace(/^\.\//, ''));
           if (header.size > MAX_BYTES - total) throw new ThemeError('archive-size', '主题解压后超过大小限制');
@@ -47,7 +69,8 @@ export async function extract(bytes, folder) {
       } else input.pipe(parser);
     });
   }
-  let root = folder;
+  let root = subdir ? join(folder, archiveRoot || '', subdir) : folder;
+  if (!await exists(root)) throw new ThemeError('package-subdirectory', '主题来源指定的子目录不存在');
   for (let depth = 0; depth < 3; depth++) {
     const entries = await readdir(root, { withFileTypes: true });
     if (entries.length !== 1 || !entries[0].isDirectory()) break;
@@ -56,15 +79,32 @@ export async function extract(bytes, folder) {
   return { root, bytes: total, files: count };
 }
 export function githubSpec(spec, repoUrl = '') {
-  let raw = spec;
+  let raw = spec?.replace(/^git\+/, '');
   if (!raw?.startsWith('github:')) {
     const match = (repoUrl || raw || '').match(/^https:\/\/github\.com\/([^/]+)\/([^/#]+)(?:\/tree\/([^/]+)(?:\/(.+))?)?\/?$/);
     if (!match) return null;
     return { repo: `${match[1]}/${match[2].replace(/\.git$/, '')}`, ref: match[3] || 'HEAD', subdir: match[4] || '' };
   }
-  const match = raw.match(/^github:([^/#]+\/[^/#]+)(?:#([^&]+))?(?:&path:\/?(.+))?$/);
+  const match = raw.match(/^github:([^/#]+\/[^/#]+)(?:#(.*))?$/);
   if (!match) throw new ThemeError('install-source', '无法识别 GitHub 主题来源');
-  return { repo: match[1], ref: match[2] || 'HEAD', subdir: match[3] || '' };
+  const fragments = (match[2] || '').split('&').filter(Boolean);
+  const path = fragments.find(x => x.startsWith('path:'))?.slice(5).replace(/^\/+|\/+$/g, '') || '';
+  return { repo: match[1].replace(/\.git$/, ''), ref: fragments.find(x => !x.startsWith('path:')) || 'HEAD', subdir: path };
+}
+const gitRefs = new Map();
+export async function resolveGitRef(repo, ref = 'HEAD', { signal } = {}) {
+  if (/^[a-f0-9]{40}$/i.test(ref)) return ref;
+  const key = `${repo}#${ref}`;
+  if (!gitRefs.has(key)) gitRefs.set(key, (async () => {
+    try { const value = await fetchJson(`https://api.github.com/repos/${repo}/commits/${encodeURIComponent(ref)}`, { signal }); if (/^[a-f0-9]{40}$/i.test(value.sha)) return value.sha; } catch {}
+    // Public Git advertisements do not consume the unauthenticated REST quota.
+    const { bytes } = await download(`https://github.com/${repo}.git/info/refs?service=git-upload-pack`, { signal, limit: 8 * 1024 * 1024 });
+    const refs = new Map([...bytes.toString('utf8').matchAll(/([a-f0-9]{40}) (HEAD|refs\/[^\s\0]+)/g)].map(x => [x[2], x[1]]));
+    const sha = refs.get(ref) || refs.get(`refs/heads/${ref}`) || refs.get(`refs/tags/${ref}^{}`) || refs.get(`refs/tags/${ref}`);
+    if (!sha) throw new ThemeError('source-version', `无法找到主题的源码版本：${repo}#${ref}`);
+    return sha;
+  })().catch(e => { gitRefs.delete(key); throw e; }));
+  return gitRefs.get(key);
 }
 export async function acquire(entry, target, { signal } = {}) {
   await mkdir(target, { recursive: true });
@@ -72,7 +112,7 @@ export async function acquire(entry, target, { signal } = {}) {
   if (entry.kind === 'skin-center' && entry.files?.length) {
     const root = join(target, 'package'); await mkdir(root, { recursive: true });
     let commit;
-    try { commit = (await fetchJson('https://api.github.com/repos/zhu1090093659/dsh-skins/commits/main', { signal })).sha; } catch {}
+    try { commit = await resolveGitRef('zhu1090093659/dsh-skins', 'main', { signal }); } catch {}
     let total = 0;
     for (const name of entry.files) {
       const path = inside(root, name);
@@ -90,9 +130,7 @@ export async function acquire(entry, target, { signal } = {}) {
   const git = githubSpec(spec);
   let fetched, resolved = spec, sourceUrl = entry.repo || spec;
   if (git) {
-    let ref = git.ref;
-    try { ref = (await fetchJson(`https://api.github.com/repos/${git.repo}/commits/${encodeURIComponent(git.ref)}`, { signal })).sha; }
-    catch (e) { if (!/^[a-f0-9]{40}$/i.test(ref)) throw new ThemeError('source-version', '无法确定主题的固定源码版本，请稍后重试', { source: git.repo, cause: e.message }); }
+    const ref = await resolveGitRef(git.repo, git.ref, { signal });
     fetched = await download(`https://codeload.github.com/${git.repo}/tar.gz/${encodeURIComponent(ref)}`, { signal, limit: 80 * 1024 * 1024, timeout: 60000 });
     resolved = ref;
   } else if (/^https:\/\//.test(spec || '')) {
@@ -110,8 +148,8 @@ export async function acquire(entry, target, { signal } = {}) {
     }
     resolved = `${manifest.name}@${manifest.version}`;
   }
-  const unpacked = await extract(fetched.bytes, target);
-  const root = git?.subdir ? inside(unpacked.root, git.subdir) : unpacked.root;
+  const unpacked = await extract(fetched.bytes, target, { subdir: git?.subdir });
+  const root = unpacked.root;
   if (!await exists(root)) throw new ThemeError('package-subdirectory', '主题来源指定的子目录不存在');
   return { ...unpacked, root, digest: digest(fetched.bytes), resolved, source: { spec, url: sourceUrl, resolved, market: entry.source } };
 }

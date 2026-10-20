@@ -37,7 +37,7 @@ export function createClient(ctx, appearance, customization) {
   async function render(id, revision) {
     const generation = ++serial, previous = externalCleanup; externalCleanup = null; externalId = null; externalDigest = null;
     customization?.select(null);
-    previous?.();
+    await previous?.();
     const builtin = BUILTINS.find(x => x.id === id);
     if (builtin) { appearance.select(id); return; }
     const theme = revision || state.themes.find(x => x.id === id);
@@ -47,7 +47,7 @@ export function createClient(ctx, appearance, customization) {
     if (!appearanceActive) return;
     customization?.select(theme.originalId, !theme.linked);
     const release = await mountExternal(ctx, theme);
-    if (disposed || generation !== serial) { release(); return; }
+    if (disposed || generation !== serial) { await release(); return; }
     externalCleanup = release; externalId = id; externalDigest = theme.digest;
   }
   async function refresh({ apply = false } = {}) {

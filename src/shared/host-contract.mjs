@@ -2,7 +2,7 @@ import { HOST_VERSION } from './protocol.mjs';
 
 // Bump when module mappings, resource hosting or lifecycle semantics change.
 // Installed packages keep source digests separate from this compatibility stamp.
-export const ADAPTER_VERSION = 3;
+export const ADAPTER_VERSION = 5;
 export const HOST_CONTRACT = Object.freeze({
   version: HOST_VERSION,
   adapterVersion: ADAPTER_VERSION,
@@ -14,7 +14,7 @@ export const HOST_CONTRACT = Object.freeze({
   // rc.2 extracted the store API from the old runtime module. Only this
   // verified export is mapped; unrelated runtime exports must be adapted.
   moduleAliases: {
-    '@deepseek-ai/dsh-client-runtime/client': { target: '@deepseek-ai/dsh-client-store', exports: ['defineStore'] },
+    '@deepseek-ai/dsh-client-runtime/client': { target: '@deepseek-ai/dsh-client-store', exports: ['defineStore', 'createSnapshotStore'] },
   },
 });
 export const isHostThemeService = name => [

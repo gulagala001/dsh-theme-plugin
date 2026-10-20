@@ -1,12 +1,14 @@
 import { readFile, stat, writeFile } from 'node:fs/promises';
 import { basename, dirname, join } from 'node:path';
-import { parse } from 'acorn';
-import { simple } from 'acorn-walk';
 import semver from 'semver';
 import { json, exists, walk, digest, ownedFile } from './files.mjs';
 import { transformCss } from './styles.mjs';
 import { adaptClientAssets } from './client-assets.mjs';
 import { adaptClientModules } from './client-modules.mjs';
+import { inspectClient, wrapClient } from './client-entry.mjs';
+import { inspectBackend } from './theme-backend.mjs';
+import { clientSource } from './client-build.mjs';
+export { inspectClient } from './client-entry.mjs';
 import { ADAPTER_VERSION } from '../shared/host-contract.mjs';
 import { API, HOST_VERSION, PROTOCOL, ThemeError, slug, text } from '../shared/protocol.mjs';
 import { validateSkin } from '../../vendor/appearance/src/client/skins/format.mjs';
@@ -43,33 +45,6 @@ export function normalizeData(value) {
   }
   throw new ThemeError('theme-format', '尚不能自动识别此主题格式，请使用“复制给 AI 修复”');
 }
-export function inspectClient(code, filename) {
-  let ast;
-  try { ast = parse(code, { ecmaVersion: 'latest', sourceType: 'script' }); }
-  catch (e) { throw new ThemeError('client-syntax', `主题客户端语法不兼容：${filename}:${e.loc?.line || 0} ${e.message}`); }
-  let registration, count = 0;
-  const requires = new Set(), network = new Set();
-  simple(ast, {
-    CallExpression(node) {
-      const callee = node.callee;
-      if (callee.type === 'MemberExpression' && callee.property?.name === 'load' && code.slice(callee.start, callee.end).includes('__ModuleLoader__')) {
-        count++; const object = node.arguments[0];
-        const id = object?.properties?.find(p => p.key?.name === 'id' || p.key?.value === 'id')?.value;
-        const factory = object?.properties?.find(p => p.key?.name === 'factory' || p.key?.value === 'factory')?.value;
-        if (id?.type === 'Literal' && typeof id.value === 'string' && ['FunctionExpression', 'ArrowFunctionExpression'].includes(factory?.type)) registration = { moduleId: id.value, factory: code.slice(factory.start, factory.end) };
-      }
-      if (callee.type === 'Identifier' && callee.name === 'require') {
-        if (node.arguments[0]?.type !== 'Literal' || typeof node.arguments[0].value !== 'string') throw new ThemeError('client-import', '主题包含无法预先确定的动态模块依赖');
-        requires.add(node.arguments[0].value);
-      }
-    },
-    Literal(node) { if (typeof node.value === 'string' && /^\/(?:api|skin-assets|plugins)\//.test(node.value)) network.add(node.value); },
-  });
-  if (count !== 1 || !registration) throw new ThemeError('client-format', '主题客户端不是可识别的 DSH ModuleLoader 模块，需要适配其入口');
-  const forbidden = [...requires].filter(x => /^(?:node:|fs$|child_process$|electron$)|^\.\.?\//.test(x));
-  if (forbidden.length) throw new ThemeError('client-import', '主题客户端依赖未打包的模块', { modules: forbidden });
-  return { ...registration, requires: [...requires], routes: [...network] };
-}
 export async function inspectTheme(input, meta = {}) {
   const file = (await stat(input)).isFile();
   const root = file ? dirname(input) : input;
@@ -95,9 +70,11 @@ export async function inspectTheme(input, meta = {}) {
   const listed = file ? { files: [{ name: basename(input) }], bytes: (await stat(input)).size } : await walk(root);
   const hashes = {};
   for (const item of listed.files) hashes[item.name] = digest(await readFile(join(root, item.name)));
-  const contentHash = digest((file ? await readFile(input, 'utf8') : JSON.stringify(hashes)) + `\nhost:${HOST_VERSION};adapter:${ADAPTER_VERSION}`);
+  const prepared = normalized.format === 'dsh-client' || normalized.client ? await clientSource(root, pkg, normalized.client?.entry) : null;
+  const contentHash = digest((file ? await readFile(input, 'utf8') : JSON.stringify(hashes)) + (prepared?.built ? digest(prepared.code) : '') + `\nhost:${HOST_VERSION};adapter:${ADAPTER_VERSION}`);
   const resource = name => `${API}/assets/${id}/${contentHash}/${name.split('/').map(encodeURIComponent).join('/')}`;
   const assets = new Set(listed.files.map(f => f.name));
+  const backend = await inspectBackend(root, pkg, assets);
   const css = [], nativeTokens = new Set();
   for (const path of normalized.styles || []) {
     const full = await ownedFile(root, path), s = await stat(full);
@@ -114,20 +91,18 @@ export async function inspectTheme(input, meta = {}) {
   }
   let client;
   if (normalized.format === 'dsh-client' || normalized.client) {
-    let path = normalized.client?.entry || pkg.exports?.['./client'] || 'lib/client.js';
-    if (typeof path !== 'string') path = path?.import || path?.default;
-    if (!path) throw new ThemeError('client-entry', '主题未声明可识别的客户端入口');
+    const path = prepared.path;
     const full = await ownedFile(root, path);
-    if ((await stat(full)).size > MAX_TEXT) throw new ThemeError('client-size', '主题客户端过大');
-    const inspected = inspectClient(await readFile(full, 'utf8'), path);
+    if ((await stat(full)).size > 64 * 1024 * 1024) throw new ThemeError('client-size', '主题客户端超过 64 MiB，请使用独立资源文件');
+    const inspected = inspectClient(prepared.code, path, { moduleId: pkg.name });
     const moduleId = `dsh-theme-plugin/theme/${id}/${contentHash}`;
-    // Only the module factory is loaded. Original registration/top-level code
-    // cannot replace a live DSH module with the same id.
-    const modules = adaptClientModules(inspected.factory, inspected.requires);
-    const adapted = adaptClientAssets(modules.factory, { packageName: pkg.name, originalId: normalized.originalId, assets, resource });
-    const generated = `window.__ModuleLoader__.load({id:${JSON.stringify(moduleId)},factory:${adapted.factory}});\n`;
+    // Keep lexical helpers and sibling registrations, but capture every
+    // registration inside this theme's private loader identity.
+    const modules = adaptClientModules(inspected.source, inspected.requires, { program: true });
+    const adapted = adaptClientAssets(modules.factory, { packageName: pkg.name, originalId: normalized.originalId, clientPath: path, assets, resource });
+    const generated = wrapClient(adapted.factory, { moduleId, originalModuleId: inspected.moduleId, mappings: modules.mappings });
     client = { moduleId, originalModuleId: inspected.moduleId, requires: modules.requires, moduleMappings: modules.mappings, routes: inspected.routes,
-      adaptedRoutes: adapted.adaptedRoutes, path: path.replace(/^\.\//, ''), code: generated, url: `${API}/client/${id}/${contentHash}` };
+      adaptedRoutes: adapted.adaptedRoutes, build: prepared.built, path: path.replace(/^\.\//, ''), code: generated, url: `${API}/client/${id}/${contentHash}` };
   }
   const warnings = [];
   const declaredLicense = manifest?.license || pkg.license || meta.license || '';
@@ -147,7 +122,7 @@ export async function inspectTheme(input, meta = {}) {
   const previews = [];
   for (const path of Object.values(normalized.preview || {})) if (typeof path === 'string' && assets.has(path)) previews.push(resource(path));
   return { ...normalized, id, digest: contentHash, root, entryFile: file ? basename(input) : undefined, files: hashes, bytes: listed.bytes, css: css.join('\n'), nativeTokens: [...nativeTokens], background,
-    hooks: hooks ? { ...hooks, url: resource(hooks.entry) } : null, client,
+    hooks: hooks ? { ...hooks, url: resource(hooks.entry) } : null, client, backend,
     version: normalized.version || '0.0.0', source: meta.source || {}, screenshots: [...previews, ...(meta.screenshots || [])],
     license: declaredLicense, packageName: pkg.name,
     report: { ok: !client && !hooks, format: normalized.format, stage: client || hooks ? 'isolated-load-required' : 'static-checked', warnings,

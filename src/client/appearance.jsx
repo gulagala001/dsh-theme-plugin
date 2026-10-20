@@ -1,5 +1,5 @@
 import React, { useSyncExternalStore } from 'react';
-import { createSkinRuntime, STORAGE_KEY } from '../../vendor/appearance/src/client/skins/runtime.mjs';
+import { createSkinRuntime } from '../../vendor/appearance/src/client/skins/runtime.mjs';
 import { createSurfaceMarkers } from '../../vendor/appearance/src/client/skins/surfaces.mjs';
 import { applySidebarPresentation } from '../../vendor/appearance/src/client/sidebar.jsx';
 import { applyCodexIntegration } from '../../vendor/appearance/src/client/skins/codex-desktop/integration.jsx';
@@ -21,6 +21,14 @@ export { Personalization } from '../../vendor/appearance/src/client/skins/person
 export { AppearanceDrafts, useAppearanceDrafts } from '../../vendor/appearance/src/client/skins/advanced.jsx';
 export { AppearanceSelect, EffectsToggle } from '../../vendor/appearance/src/client/skins/controls.jsx';
 export { Button, Input, Select, Switch, Checkbox, SegmentedControl } from '../../vendor/appearance/src/client/native-controls.jsx';
+import { API } from '../shared/protocol.mjs';
+const STORAGE_KEY = 'dsh.theme.appearance.v1';
+// The shared appearance source stays byte-identical to OMD; only these product options differ.
+const PRODUCT = {
+  storageKey: STORAGE_KEY, defaultSkin: 'default', owner: { id: 'dsh-theme-plugin', priority: 10 }, tokenOwner: 'dsh-theme-plugin/appearance',
+  brand: { themeLogo: '跟随主题', productLogo: '立体鲸鱼', productTitle: null, placeholder: 'DeepSeek Harness' },
+  assetUrl: file => `${API}/builtin/${file}`,
+};
 export function createAppearance(ctx) {
   // Adopt appearance preferences without changing the original plugin's data.
   // Keep the theme's visuals; only the default product wording is native.
@@ -31,7 +39,9 @@ export function createAppearance(ctx) {
     }
   }
   const surfaces = createSurfaceMarkers();
-  const runtime = createSkinRuntime(ctx, adapter, { 'ios-liquid': ios, 'codex-desktop': codex, 'claude-cli-terminal': terminal, [MATERIAL_LAYOUT]: material, 'glyph-motion': glyph }, appearance, surfaces, base);
+  const runtime = createSkinRuntime(ctx, adapter, { 'ios-liquid': ios, 'codex-desktop': codex, 'claude-cli-terminal': terminal, [MATERIAL_LAYOUT]: material, 'glyph-motion': glyph }, appearance, surfaces, base, PRODUCT);
+  let observer;
+  ctx.effect(() => () => { observer?.disconnect(); runtime.dispose(); surfaces.dispose(); });
   ctx.effect(() => {
     let release;
     const sync = () => {
@@ -48,15 +58,14 @@ export function createAppearance(ctx) {
     const off = runtime.subscribe(sync); sync();
     return () => { off(); release?.(); };
   });
-  const observer = new MutationObserver(() => surfaces.refresh());
+  observer = new MutationObserver(() => surfaces.refresh());
   observer.observe(document.body, { childList: true, subtree: true });
   applySidebarPresentation(ctx);
-  applyCodexIntegration(ctx, () => runtime);
-  applyMaterialIntegration(ctx, () => runtime);
+  applyCodexIntegration(ctx, () => runtime, { priority: -100 });
+  applyMaterialIntegration(ctx, () => runtime, { priority: -100 });
   applyTerminalPresentation(ctx, () => runtime);
-  applyGlyphIntegration(ctx, () => runtime);
+  applyGlyphIntegration(ctx, () => runtime, { priority: -100 });
   applyBrand(ctx, runtime);
-  ctx.effect(() => () => { observer.disconnect(); runtime.dispose(); surfaces.dispose(); });
   return runtime;
 }
 function applyBrand(ctx, runtime) {

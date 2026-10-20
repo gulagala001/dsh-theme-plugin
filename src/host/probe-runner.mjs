@@ -1,13 +1,15 @@
 // Run only against an owned disposable DSH home and a fresh headless browser.
-// Never mounts the candidate's Node/host entry or reads the user's profile.
+// Theme HTTP backends run in their own restricted process and data directory.
+// The runner never reads the user's profile.
 import { readFile, writeFile, mkdir, symlink, access } from 'node:fs/promises';
 import { join } from 'node:path';
 import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
 import { spawn } from 'node:child_process';
 import { chromium } from 'playwright-core';
+import { probePage } from './probe-page.mjs';
 const [input, output] = process.argv.slice(2);
-const { theme, cli, folder, browserPath, plugin } = JSON.parse(await readFile(input, 'utf8'));
+const { theme, cli, folder, browserPath, plugin, screenshots } = JSON.parse(await readFile(input, 'utf8'));
 let host, browser, result = { ok: false, error: '隔离检查未完成' };
 const cleanup = async () => {
   await browser?.close().catch(() => {});
@@ -54,23 +56,7 @@ try {
   for (const path of candidates.filter(Boolean)) { try { await access(path); executablePath = path; break; } catch {} }
   if (!executablePath) throw Error('未找到可用于隔离验证的浏览器；此动态主题尚未安装。');
   browser = await chromium.launch({ headless: true, executablePath, env, args: process.platform === 'darwin' ? ['--use-mock-keychain', '--password-store=basic'] : [] });
-  const context = await browser.newContext({ serviceWorkers: 'block', viewport: { width: 1280, height: 900 } });
-  const origin = new URL(bootstrap).origin;
-  const blocked = [];
-  await context.route('**/*', route => {
-    const url = route.request().url();
-    if (url.startsWith(origin + '/') || /^(data|blob):/.test(url)) return route.continue();
-    blocked.push(new URL(url).origin + new URL(url).pathname);
-    return route.abort();
-  });
-  const page = await context.newPage(), errors = [];
-  page.on('pageerror', e => errors.push(e.message));
-  page.on('response', response => { if (response.status() >= 400 && response.url().startsWith(origin + '/') && !response.url().endsWith('/favicon.ico')) errors.push(`加载失败 (${response.status()})：${new URL(response.url()).pathname}`); });
-  await page.goto(bootstrap, { timeout: 25000, waitUntil: 'domcontentloaded' });
-  await page.waitForFunction(() => window.__DTP_PROBE_RESULT__ !== undefined, null, { timeout: 25000 });
-  const report = await page.evaluate(() => window.__DTP_PROBE_RESULT__);
-  result = { ...report, errors: [...errors, ...(report.errors || []), ...[...new Set(blocked)].map(url => `主题依赖尚未打包的外部资源：${url}`)] };
-  if (result.errors.length) { result.ok = false; result.error = result.errors[0]; }
+  result = await probePage(browser, bootstrap, { screenshots });
 } catch (e) { result = { ok: false, error: e.message }; }
 finally {
   await cleanup();

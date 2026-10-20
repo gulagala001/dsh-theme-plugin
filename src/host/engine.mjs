@@ -5,12 +5,13 @@ import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { Library } from './store.mjs';
 import { Market } from './market.mjs';
-import { acquire, candidates, extract, copyLocal } from './packages.mjs';
+import { acquire, candidates, extract, copyLocal, publishedFallback } from './packages.mjs';
 import { inspectTheme } from './formats.mjs';
 import { preflight, resolveCli } from './probe.mjs';
 import { atomic, digest, exists, json, inside, ownedFile } from './files.mjs';
 import { HOST_VERSION, VERSION, ThemeError, repairTask } from '../shared/protocol.mjs';
 import { needsRecheck, needsRuntimeProbe, isHostThemeService, isNativeThemeController } from '../shared/host-contract.mjs';
+import { ThemeBackends } from './theme-backend.mjs';
 export const publicTheme = theme => {
   if (!theme) return null;
   const { root, files, previousRevision, ...rest } = theme;
@@ -22,6 +23,12 @@ export class ThemeEngine {
     this.ctx = ctx; this.root = root; this.library = new Library(root); this.market = new Market(root);
     this.operations = new Map(); this.pendingThemes = new Map(); this.probe = probe; this.cli = resolveCli(ctx);
     this.controller = new AbortController();
+    const server = ctx.get('webServer'), connection = ctx.get('connection');
+    this.backends = new ThemeBackends(join(root, 'backends'), {
+      cli: this.cli,
+      register: server ? route => server.register(route) : undefined,
+      authorize: connection ? request => connection.requestRejection(request) : undefined,
+    });
   }
   async initialize() {
     await this.library.initialize();
@@ -32,13 +39,35 @@ export class ThemeEngine {
       if (hostEntries.includes(s.active)) { s.active = null; s.activeDigest = undefined; }
       if (hostEntries.includes(s.previous)) { s.previous = null; s.previousDigest = undefined; }
     });
+    // Native inventory can wait for the Host Loader (including this plugin)
+    // while auditing restored agent presets. Never await it during apply().
+    this.initialization = new Promise(resolve => {
+      this.resolveInitialization = resolve;
+      const start = () => queueMicrotask(() => {
+        if (this.controller.signal.aborted) { resolve(); return; }
+        void this.initializeNative().catch(e => {
+          if (!this.controller.signal.aborted) this.discoveryError = e.message;
+        }).finally(resolve);
+      });
+      const ready = this.ctx.get('appReady');
+      if (ready?.onReady) this.offReady = ready.onReady(start);
+      else void Promise.resolve().then(() => this.ctx.get('loader')?.await()).then(start).catch(e => {
+        this.discoveryError = e.message; resolve();
+      });
+    });
+  }
+  async initializeNative() {
+    this.controller.signal.throwIfAborted();
     if (this.library.recoveredPending) {
       const pending = this.library.recoveredPending;
       try { await this.restoreLinked(this.theme(pending.previous), this.theme(pending.id)); }
       catch (e) { this.discoveryError = `原生主题恢复需要处理：${e.message}`; }
     }
+    this.controller.signal.throwIfAborted();
     await this.discover({ local: false }).catch(e => { this.discoveryError = e.message; });
+    this.controller.signal.throwIfAborted();
     await this.prepareRevalidation();
+    this.controller.signal.throwIfAborted();
     this.discovery = this.discover().catch(e => { this.discoveryError = e.message; });
   }
   async prepareRevalidation() {
@@ -58,6 +87,7 @@ export class ThemeEngine {
         if (this.controller.signal.aborted) break;
         try {
           const theme = await inspectTheme(old.entryFile ? join(old.root, old.entryFile) : old.root, { id: old.id, source: old.source, name: old.name });
+          this.controller.signal.throwIfAborted();
           await this.commitCandidate(theme, () => {});
           await this.library.mutate(s => {
             if (s.upgrade?.id === theme.id && s.active === 'default') { s.active = theme.id; s.activeDigest = theme.digest; s.recovery = null; }
@@ -71,8 +101,11 @@ export class ThemeEngine {
     })().catch(e => { this.discoveryError = e.message; }).finally(() => { this.revalidating = false; });
   }
   async state() {
+    await this.initialization;
+    this.controller.signal.throwIfAborted();
     if (this.library.state.pending?.deadline < Date.now()) await this.fail(this.library.state.pending.token, '主题启用超时，已恢复之前的外观。');
     const state = await this.library.snapshot();
+    await this.backends.start(this.probe || this.theme(state.active, state.activeDigest));
     return { ...state, themes: state.themes.map(publicTheme), activeTheme: publicTheme(this.theme(state.active, state.activeDigest)), version: VERSION, hostVersion: HOST_VERSION,
       discoveryError: this.discoveryError, discovering: !!this.discovering, revalidating: !!this.revalidating, probe: this.probe ? publicTheme(this.probe) : null };
   }
@@ -105,17 +138,41 @@ export class ThemeEngine {
     const installed = [];
     for (const folder of options) {
       progress('检查主题格式、依赖与资源');
-      const theme = await inspectTheme(folder, { ...entry, id: options.length === 1 ? entry.id : `${entry.id}-${digest(folder.slice(acquired.root.length)).slice(0, 8)}`, source: acquired.source });
-      installed.push(await this.commitCandidate(theme, progress));
+      const meta = { ...entry, id: options.length === 1 ? entry.id : `${entry.id}-${digest(folder.slice(acquired.root.length)).slice(0, 8)}`, source: acquired.source };
+      let theme, published;
+      try { theme = await inspectTheme(folder, meta); }
+      catch (error) {
+        if (!['client-build', 'client-entry-missing', 'client-syntax', 'client-format', 'client-import'].includes(error.code)) throw error;
+        progress('获取同作者、同版本的完整发行包');
+        published = await publishedFallback(folder, join(staging, 'published', meta.id), { signal: this.controller.signal }).catch(() => null);
+        if (!published) throw error;
+        theme = await inspectTheme(published.root, { ...meta, source: { ...published.source, original: acquired.source } });
+      }
+      if (theme.client?.build && !published) {
+        progress('核对完整发行包');
+        published = await publishedFallback(folder, join(staging, 'published', meta.id), { signal: this.controller.signal }).catch(() => null);
+        if (published) theme = await inspectTheme(published.root, { ...meta, source: { ...published.source, original: acquired.source } });
+      }
+      try { installed.push(await this.commitCandidate(theme, progress)); }
+      catch (error) {
+        if (error.code !== 'probe-failed' || published) throw error;
+        progress('使用同作者同版本发行包重新检查');
+        published = await publishedFallback(folder, join(staging, 'published', meta.id), { signal: this.controller.signal }).catch(() => null);
+        if (!published) throw error;
+        const complete = await inspectTheme(published.root, { ...meta, source: { ...published.source, original: acquired.source } });
+        installed.push(await this.commitCandidate(complete, progress));
+      }
     }
     return { themes: installed.map(publicTheme) };
     } finally { await rm(staging, { recursive: true, force: true }).catch(() => {}); }
   }
   async commitCandidate(theme, progress) {
+    this.controller.signal.throwIfAborted();
     this.pendingThemes.set(theme.id, theme);
     try {
       progress(needsRuntimeProbe(theme) ? '在隔离 DSH 中验证加载与切换' : '校验完成，保存主题');
       theme.report = await preflight(theme, { root: this.root, cli: this.cli, signal: this.controller.signal, progress });
+      this.controller.signal.throwIfAborted();
       const target = join(this.root, 'themes', theme.id, theme.digest);
       if (!await exists(target)) {
         const temporary = target + '.install-' + randomUUID();
@@ -166,6 +223,7 @@ export class ThemeEngine {
       const roots = [];
       const manager = this.ctx.get('pluginManager');
       const bundles = manager ? await manager.listBundles().catch(() => []) : [];
+      this.controller.signal.throwIfAborted();
       for (const bundle of bundles) {
         if (!bundle.installed || bundle.official || isHostThemeService(bundle.name) || (!isNativeThemeController(bundle.name) && /dsh-theme-plugin|manager|market|center|gallery/.test(bundle.name)) || !profile) continue;
         const path = join(profile, 'node_modules', bundle.name);
@@ -174,6 +232,7 @@ export class ThemeEngine {
         if (/theme|skin|wallpaper|aqua|catppuccin/i.test(bundle.name + ' ' + pkg.description) || await exists(join(path, 'skin.json'))) roots.push({ path, bundle });
       }
       const entries = manager?.listPlugins ? await manager.listPlugins().catch(() => []) : [];
+      this.controller.signal.throwIfAborted();
       const bundleEntries = new Set(bundles.filter(b => roots.some(r => r.bundle === b)).flatMap(b => (b.rows || []).map(r => r.entryId)));
       for (const entry of entries) {
         if (!profile || bundleEntries.has(entry.entryId) || isHostThemeService(entry.moduleName) || !/theme|skin|wallpaper|aqua|catppuccin/i.test(entry.moduleName) || (!isNativeThemeController(entry.moduleName) && /manager|market|center|gallery|dsh-theme-plugin/.test(entry.moduleName))) continue;
@@ -187,6 +246,7 @@ export class ThemeEngine {
       }
       if (local && home && await exists(join(home, 'skins'))) for (const entry of await readdir(join(home, 'skins'), { withFileTypes: true })) if (entry.isDirectory()) roots.push({ path: join(home, 'skins', entry.name) });
       for (const source of roots) {
+        this.controller.signal.throwIfAborted();
         const id = 'discovered-' + digest(source.bundle?.name || source.entry?.entryId || source.path).slice(0, 24);
         if (this.library.state.themes.some(x => x.id === id)) {
           if (this.library.state.active === null && (source.bundle || source.entry)?.enabled) await this.library.mutate(s => { s.active = id; });
@@ -227,6 +287,8 @@ export class ThemeEngine {
   }
   async activate(id, { startup = false } = {}) {
     const candidate = await this.library.begin(id, { startup });
+    try { await this.backends.start(this.theme(id, candidate.digest)); }
+    catch (e) { await this.fail(candidate.token, e.message); throw e; }
     candidate.theme = publicTheme(this.theme(id, candidate.digest));
     candidate.previousTheme = publicTheme(this.theme(candidate.previous, candidate.previousDigest));
     if (startup) return candidate;
@@ -258,9 +320,15 @@ export class ThemeEngine {
   }
   async fail(token, message) {
     if (this.library.state.pending?.token !== token) return;
-    const previous = this.theme(this.library.state.pending?.previous), candidate = this.theme(this.library.state.pending?.id);
+    const previous = this.theme(this.library.state.pending?.previous, this.library.state.pending?.previousDigest), candidate = this.theme(this.library.state.pending?.id, this.library.state.pending?.digest);
     try { await this.restoreLinked(previous, candidate); } catch (e) { message += `；原生主题恢复：${e.message}`; }
-    return this.library.fail(token, message);
+    const result = await this.library.fail(token, message);
+    this.backends.retain([previous]);
+    return result;
   }
-  dispose() { this.controller.abort(); }
+  async commit(token) {
+    await this.library.commit(token);
+    this.backends.retain([this.theme(this.library.state.active, this.library.state.activeDigest)]);
+  }
+  dispose() { this.offReady?.(); this.controller.abort(); this.resolveInitialization?.(); this.backends.dispose(); }
 }

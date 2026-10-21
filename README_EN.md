@@ -1,4 +1,4 @@
-<a name="readme-top"></a>
+<a id="readme-top"></a>
 
 <h1 align="center">dsh-theme-plugin</h1>
 
@@ -15,9 +15,9 @@
 
 <p align="center"><a href="#readme-install"><strong>Get started</strong></a> · <a href="docs/compatibility_EN.md">Docs</a> · <a href="https://github.com/gulagala001/dsh-theme-plugin/issues">Report an issue</a></p>
 
-<p align="center"><a href="docs/images/market.png"><img src="docs/images/market.png" alt="带图片与说明的主题市场 / Visual theme marketplace" width="880"></a></p>
+<p align="center"><a href="docs/images/theme-hero-en.png"><img src="docs/images/theme-hero-en.png" alt="dsh-theme-plugin · Discover, install, manage" width="880"></a></p>
 
-<a name="readme-install"></a>
+<a id="readme-install"></a>
 
 ## Quick start
 
@@ -50,6 +50,8 @@ Open **Settings → Appearance → Market**, choose a theme and click **Install 
 | **Market** | Multiple sources, image cards, descriptions, authors, search, style filters, popularity/date sorting and one-click installation. |
 
 Includes native DSH, Glyph, Codex Desktop, iOS Liquid Glass, Claude CLI and Google Material appearances, plus 29 palettes. A new installation keeps native appearance; existing themes and migratable preferences retain their selection. The default title is DeepSeek Harness while theme typography, shapes and motion remain intact.
+
+![Theme marketplace](docs/images/market.png)
 
 ### Bring existing themes into management
 

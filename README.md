@@ -1,4 +1,4 @@
-<a name="readme-top"></a>
+<a id="readme-top"></a>
 
 <h1 align="center">dsh-theme-plugin</h1>
 
@@ -15,9 +15,9 @@
 
 <p align="center"><a href="#readme-install"><strong>开始使用</strong></a> · <a href="docs/compatibility.md">完整文档</a> · <a href="https://github.com/gulagala001/dsh-theme-plugin/issues">反馈</a></p>
 
-<p align="center"><a href="docs/images/market.png"><img src="docs/images/market.png" alt="带图片与说明的主题市场 / Visual theme marketplace" width="880"></a></p>
+<p align="center"><a href="docs/images/theme-hero-zh.png"><img src="docs/images/theme-hero-zh.png" alt="dsh-theme-plugin · 发现、安装、管理" width="880"></a></p>
 
-<a name="readme-install"></a>
+<a id="readme-install"></a>
 
 ## 快速开始
 
@@ -50,6 +50,8 @@ https://github.com/gulagala001/dsh-theme-plugin/releases/download/v0.2.0-dsh.0.2
 | **市场** | 多来源图片卡片、说明、作者、搜索、风格筛选、热门／最新排序与一键安装。 |
 
 内置 DSH 原生、Glyph 动态字符、Codex Desktop、iOS Liquid Glass、Claude CLI 与 Google Material，并提供 29 套配色。新装保留原生外观；识别到已有主题或可迁移偏好时承接当前选择。默认标题为 DeepSeek Harness，保留主题的字体、造型和动态效果。
+
+![主题市场](docs/images/market.png)
 
 ### 已有主题直接纳入管理
 

@@ -8,7 +8,7 @@
 
 <p align="center">
   <a href="https://github.com/gulagala001/dsh-theme-plugin/releases/tag/v0.2.0-dsh.0.2.1-rc.2"><img alt="0.2.0" src="https://img.shields.io/badge/release-0.2.0-0969da?style=flat-square"></a>
-  <a href="https://github.com/gulagala001/dsh-theme-plugin/releases/tag/v0.2.0-dsh.0.2.1-rc.2"><img alt="This package downloads, not users" src="https://img.shields.io/github/downloads/gulagala001/dsh-theme-plugin/v0.2.0-dsh.0.2.1-rc.2/gulagala001-dsh-theme-plugin-0.2.0-dsh.0.2.1-rc.2.tgz?style=flat-square&amp;label=package%20downloads&amp;displayAssetName=false&amp;color=0969da"></a>
+  <a href="https://github.com/gulagala001/dsh-theme-plugin/releases/tag/v0.2.0-dsh.0.2.1-rc.2"><img alt="Package downloads" src="https://img.shields.io/github/downloads/gulagala001/dsh-theme-plugin/v0.2.0-dsh.0.2.1-rc.2/gulagala001-dsh-theme-plugin-0.2.0-dsh.0.2.1-rc.2.tgz?style=flat-square&amp;label=package%20downloads&amp;displayAssetName=false&amp;color=0969da"></a>
   <a href="#readme-install"><img alt="DSH 0.2.1-rc.2" src="https://img.shields.io/badge/DSH-0.2.1--rc.2-0969da?style=flat-square"></a>
   <a href="https://github.com/gulagala001/dsh-theme-plugin/stargazers"><img alt="GitHub Stars" src="https://img.shields.io/github/stars/gulagala001/dsh-theme-plugin?style=flat-square&amp;color=0969da"></a>
 </p>
@@ -16,10 +16,6 @@
 <p align="center"><a href="#readme-install"><strong>Get started</strong></a> · <a href="docs/compatibility_EN.md">Docs</a> · <a href="https://github.com/gulagala001/dsh-theme-plugin/issues">Report an issue</a></p>
 
 <p align="center"><a href="docs/images/market.png"><img src="docs/images/market.png" alt="带图片与说明的主题市场 / Visual theme marketplace" width="880"></a></p>
-
-*Actual marketplace in an isolated DSH profile. Theme previews belong to their authors; catalog size is not a compatibility count.*
-
-The download badge counts only the linked release’s plugin archive; it is not a count of users or installations.
 
 <a name="readme-install"></a>
 
@@ -60,8 +56,6 @@ Includes native DSH, Glyph, Codex Desktop, iOS Liquid Glass, Claude CLI and Goog
 Already-installed plugins remain under DSH’s native manager. The theme manager coordinates activation rather than loading a second copy. Import recognized `.json`, `.zip` and `.tgz` formats. Downloads and adaptation preserve upstream originals.
 
 ![Theme management](docs/images/theme-management.png)
-
-*Actual management UI in an isolated profile. Community artwork belongs to its respective authors.*
 
 ### Check the version and runtime before installation
 

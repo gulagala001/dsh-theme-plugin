@@ -8,7 +8,7 @@
 
 <p align="center">
   <a href="https://github.com/gulagala001/dsh-theme-plugin/releases/tag/v0.2.0-dsh.0.2.1-rc.2"><img alt="0.2.0" src="https://img.shields.io/badge/release-0.2.0-0969da?style=flat-square"></a>
-  <a href="https://github.com/gulagala001/dsh-theme-plugin/releases/tag/v0.2.0-dsh.0.2.1-rc.2"><img alt="本版插件包下载次数，非用户数" src="https://img.shields.io/github/downloads/gulagala001/dsh-theme-plugin/v0.2.0-dsh.0.2.1-rc.2/gulagala001-dsh-theme-plugin-0.2.0-dsh.0.2.1-rc.2.tgz?style=flat-square&amp;label=package%20downloads&amp;displayAssetName=false&amp;color=0969da"></a>
+  <a href="https://github.com/gulagala001/dsh-theme-plugin/releases/tag/v0.2.0-dsh.0.2.1-rc.2"><img alt="本版插件包下载次数" src="https://img.shields.io/github/downloads/gulagala001/dsh-theme-plugin/v0.2.0-dsh.0.2.1-rc.2/gulagala001-dsh-theme-plugin-0.2.0-dsh.0.2.1-rc.2.tgz?style=flat-square&amp;label=package%20downloads&amp;displayAssetName=false&amp;color=0969da"></a>
   <a href="#readme-install"><img alt="DSH 0.2.1-rc.2" src="https://img.shields.io/badge/DSH-0.2.1--rc.2-0969da?style=flat-square"></a>
   <a href="https://github.com/gulagala001/dsh-theme-plugin/stargazers"><img alt="GitHub Stars" src="https://img.shields.io/github/stars/gulagala001/dsh-theme-plugin?style=flat-square&amp;color=0969da"></a>
 </p>
@@ -16,10 +16,6 @@
 <p align="center"><a href="#readme-install"><strong>开始使用</strong></a> · <a href="docs/compatibility.md">完整文档</a> · <a href="https://github.com/gulagala001/dsh-theme-plugin/issues">反馈</a></p>
 
 <p align="center"><a href="docs/images/market.png"><img src="docs/images/market.png" alt="带图片与说明的主题市场 / Visual theme marketplace" width="880"></a></p>
-
-*独立 DSH profile 中的真实市场界面；作品预览归原作者所有，目录数量不代表兼容数量。*
-
-下载徽章只统计所链接发行版中的插件压缩包，不代表安装人数或活跃用户数。
 
 <a name="readme-install"></a>
 
@@ -60,8 +56,6 @@ https://github.com/gulagala001/dsh-theme-plugin/releases/download/v0.2.0-dsh.0.2
 已安装插件由 DSH 原生管理，主题基座协调启停，避免执行第二份主题。文件导入支持已识别的 `.json`、`.zip` 和 `.tgz` 格式；下载与适配保留上游原包。
 
 ![主题管理](docs/images/theme-management.png)
-
-*真实独立 profile 的主题管理界面；图片中的社区作品属于各自作者。*
 
 ### 一次安装，先查版本和运行状态
 

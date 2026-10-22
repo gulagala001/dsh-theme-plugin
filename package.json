@@ -1,6 +1,6 @@
 {
   "name": "@gulagala001/dsh-theme-plugin",
-  "version": "0.2.0-dsh.0.2.1-rc.2",
+  "version": "0.2.1-dsh.0.2.1-rc.2",
   "description": "Themes, appearance customization and visual theme markets for DeepSeek Harness.",
   "type": "module",
   "author": "gulagala001",
@@ -46,7 +46,8 @@
     "LICENSE",
     "THIRD_PARTY_NOTICES.md",
     "scripts/check-package.mjs",
-    "scripts/theme.mjs"
+    "scripts/theme.mjs",
+    "CHANGELOG.md"
   ],
   "scripts": {
     "build": "node scripts/build.mjs",

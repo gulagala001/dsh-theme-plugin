@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('../', import.meta.url)).replace(/\/$/, '');
 const sha256 = bytes => createHash('sha256').update(bytes).digest('hex');
-const allowed = /^(?:\.gitignore|\.github\/workflows\/check\.yml|package\.json|pnpm-lock\.yaml|cordis\.patch\.yml|README(?:_EN)?\.md|LICENSE|THIRD_PARTY_NOTICES\.md|src\/(?:[\w.-]+\/)*[\w.-]+|lib\/client\.js|scripts\/(?:build|check-package|theme)\.mjs|test\/[\w.-]+\.test\.mjs|docs\/(?:[\w.-]+\/)*[\w.-]+\.(?:md|png)|assets\/builtin\/[\w.-]+\.(?:jpg|css)|vendor\/appearance\/(?:[\w.-]+\/)*[\w.-]+\.(?:mjs|jsx|css|json)|vendor\/(?:font-licenses|licenses)\/[\w.-]+\.txt)$/;
+const allowed = /^(?:\.gitignore|\.github\/workflows\/check\.yml|package\.json|pnpm-lock\.yaml|cordis\.patch\.yml|README(?:_EN)?\.md|CHANGELOG\.md|LICENSE|THIRD_PARTY_NOTICES\.md|src\/(?:[\w.-]+\/)*[\w.-]+|lib\/client\.js|scripts\/(?:build|check-package|theme)\.mjs|test\/[\w.-]+\.test\.mjs|docs\/(?:[\w.-]+\/)*[\w.-]+\.(?:md|png)|assets\/builtin\/[\w.-]+\.(?:jpg|css)|vendor\/appearance\/(?:[\w.-]+\/)*[\w.-]+\.(?:mjs|jsx|css|json)|vendor\/(?:font-licenses|licenses)\/[\w.-]+\.txt)$/;
 
 const forbidden = path => /(?:^|\/)(?:AGENTS|CLAUDE|AI_README|PLAN|REFERENCE|COMPONENT-ALLOCATION|.*HANDOFF.*|PROMPT_(?:MAINTENANCE|CHANGES))\.md$/i.test(path)
   || /(?:^|\/)[^/]*(?:raw[-_ ](?:research|review|audit)|prompt[-_ ]maintenance|agent[-_ ](?:allocation|handoff)|session[-_ ](?:transcript|archive))[^/]*$/i.test(path)

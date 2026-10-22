@@ -17,6 +17,8 @@
 
 <p align="center"><a href="docs/images/theme-hero-zh.png"><img src="docs/images/theme-hero-zh.png" alt="dsh-theme-plugin · 发现、安装、管理" width="880"></a></p>
 
+<p align="center"><a href="docs/images/glyph-animation.gif"><img src="docs/images/glyph-animation.gif" alt="Glyph 动态字符鲸鱼与界面交互演示" width="600" height="438"></a></p>
+
 <a id="readme-install"></a>
 
 ## 快速开始

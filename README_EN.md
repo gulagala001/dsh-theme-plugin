@@ -17,6 +17,8 @@
 
 <p align="center"><a href="docs/images/theme-hero-en.png"><img src="docs/images/theme-hero-en.png" alt="dsh-theme-plugin · Discover, install, manage" width="880"></a></p>
 
+<p align="center"><a href="docs/images/glyph-animation.gif"><img src="docs/images/glyph-animation.gif" alt="Glyph animated character whale and interface interactions" width="600" height="438"></a></p>
+
 <a id="readme-install"></a>
 
 ## Quick start

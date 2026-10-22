@@ -47,13 +47,18 @@
     "THIRD_PARTY_NOTICES.md",
     "scripts/check-package.mjs",
     "scripts/theme.mjs",
-    "CHANGELOG.md"
+    "CHANGELOG.md",
+    "scripts/check-docs.mjs",
+    "scripts/check-release-assets.mjs"
   ],
   "scripts": {
     "build": "node scripts/build.mjs",
     "test": "node --test test/*.test.mjs",
-    "prepack": "node scripts/check-package.mjs",
-    "theme": "node scripts/theme.mjs"
+    "prepack": "node scripts/check-docs.mjs && node scripts/check-package.mjs",
+    "theme": "node scripts/theme.mjs",
+    "docs:check": "node scripts/check-docs.mjs",
+    "docs:write": "node scripts/check-docs.mjs --write",
+    "release:check": "node scripts/check-release-assets.mjs"
   },
   "dependencies": {
     "acorn": "8.18.0",

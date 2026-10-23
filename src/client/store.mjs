@@ -4,6 +4,7 @@ import { needsRuntimeProbe } from '../shared/host-contract.mjs';
 export function createClient(ctx, appearance, customization) {
   let state = { ready: false, themes: [], issues: [], active: null, catalog: { items: [], sources: [] }, busy: null, error: null, detail: null }, disposed = false, externalCleanup, externalId, serial = 0;
   const listeners = new Set();
+  const controller = new AbortController();
   let monitor, reloadTimer, observedRevision = -1, externalDigest;
   const hasDraft = () => {
     try {
@@ -49,18 +50,29 @@ export function createClient(ctx, appearance, customization) {
     void activate(fallback).then(() => report(Error(`主题运行失败，已尝试恢复可用外观：${error?.message || event.message || '未知错误'}`), theme)).finally(() => { recovering = false; });
   };
   for (const event of ['error', 'unhandledrejection', 'dtp:theme-error']) window.addEventListener(event, onRuntimeError);
-  const emit = patch => { state = { ...state, ...patch }; for (const fn of listeners) fn(); };
+  const emit = patch => { if (disposed) return; state = { ...state, ...patch }; for (const fn of listeners) fn(); };
+  function receive(next) {
+    if (disposed || next.revision < (state.revision ?? -1)) return false;
+    emit({ ...next, ready: true }); observedRevision = next.revision;
+    return true;
+  }
   async function api(action, data = {}) {
-    const response = await fetch(`${API}/${action}`, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+    controller.signal.throwIfAborted();
+    const response = await fetch(`${API}/${action}`, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data), signal: controller.signal });
     const value = await response.json();
+    controller.signal.throwIfAborted();
     if (!response.ok) { const e = Error(value.error || '主题操作失败'); e.repair = value.repair; e.code = value.code; throw e; }
     return value;
   }
   function report(e, theme) { emit({ error: { message: e.message, repair: e.repair || repairTask({ theme, error: e }) } }); }
+  const recoveryError = (error, cause) => Object.assign(Error(`${error.message}；外观恢复未完成：${cause.message}`), { code: cause.code, repair: cause.repair });
   async function render(id, revision) {
+    controller.signal.throwIfAborted();
     const generation = ++serial, previous = externalCleanup; externalCleanup = null; externalId = null; externalDigest = null;
     customization?.select(null);
     await previous?.();
+    controller.signal.throwIfAborted();
+    if (generation !== serial) throw Error('主题切换已取消');
     const builtin = BUILTINS.find(x => x.id === id);
     if (builtin) { appearance.select(id); return; }
     const theme = revision || state.themes.find(x => x.id === id);
@@ -70,18 +82,18 @@ export function createClient(ctx, appearance, customization) {
     if (!appearanceActive) return;
     customization?.select(theme.originalId, !theme.linked);
     const release = await mountExternal(ctx, theme);
-    if (disposed || generation !== serial) { await release(); return; }
+    if (disposed || generation !== serial) { await release(); throw Error('主题切换已取消'); }
     externalCleanup = release; externalId = id; externalDigest = theme.digest;
   }
   async function refresh({ apply = false } = {}) {
     const previous = state.activeTheme;
-    const next = await api('state'); emit({ ...next, ready: true });
+    const next = await api('state');
+    if (!receive(next)) return state;
     if (apply && next.active && (next.active !== externalId || next.activeTheme?.digest !== externalDigest)) {
       await render(next.active, next.activeTheme);
       if ((previous?.id !== next.activeTheme?.id || previous?.digest !== next.activeTheme?.digest) &&
         (previous?.backend?.requiresReload || next.activeTheme?.backend?.requiresReload)) reloadPage();
     }
-    observedRevision = next.revision;
     return next;
   }
   async function activate(id, { reload = true } = {}) {
@@ -92,19 +104,19 @@ export function createClient(ctx, appearance, customization) {
     try {
       pending = await api('activate', { id });
       await render(id, pending.theme);
-      await api('commit', { token: pending.token });
-      await refresh();
+      const committed = await api('commit', { token: pending.token });
+      if (!receive(committed)) await render(state.active || 'default', state.activeTheme);
       channel?.postMessage({ revision: state.revision });
       const requiresReload = !!(previous?.backend?.requiresReload || pending.theme?.backend?.requiresReload);
       if (reload && requiresReload) reloadPage();
       return { requiresReload };
     } catch (e) {
-      if (pending) {
-        await api('fail', { token: pending.token, message: e.message }).catch(() => {});
+      if (pending && !disposed) {
         try {
-          if (!pending.previous && originalSelection) appearance.select(originalSelection);
-          else await render(pending.previous || 'default', pending.previousTheme);
-        } catch { appearance.reset(); }
+          const restored = await api('fail', { token: pending.token, message: e.message });
+          receive(restored);
+          await render(state.active || originalSelection || 'default', state.activeTheme);
+        } catch (cause) { if (!disposed) { appearance.reset(); e = recoveryError(e, cause); } }
       }
       report(e, state.themes.find(x => x.id === id));
       return null;
@@ -133,9 +145,10 @@ export function createClient(ctx, appearance, customization) {
     getSnapshot: () => state, subscribe: fn => { listeners.add(fn); return () => listeners.delete(fn); },
     api, report, refresh, activate, operation,
     async start(initial) {
+      if (disposed) return;
       let guard;
       try {
-        emit({ ...(initial || await api('state')), ready: true });
+        receive(initial || await api('state'));
         if (!state.active) {
           const visual = appearance.getSnapshot(), legacy = visual.skins.find(t => t.id === visual.selected && !t.builtin);
           if (legacy) {
@@ -152,14 +165,15 @@ export function createClient(ctx, appearance, customization) {
             catch (e) {
               if (e.code !== 'activation-busy' || Date.now() > deadline) throw e;
               await new Promise(resolve => setTimeout(resolve, 250));
-              emit(await api('state'));
+              receive(await api('state'));
             }
           }
           await render(state.active, state.activeTheme);
-          if (guard) await api('commit', { token: guard.token });
+          if (guard) receive(await api('commit', { token: guard.token }));
           const active = state.activeTheme;
           if (active?.backend?.requiresReload && window.__DTP_INDEX_BACKEND__ !== `${active.id}/${active.digest}`) reloadPage();
         }
+        if (disposed) return;
         const synchronize = async () => {
           if (disposed || state.busy) return;
           try { const next = await api('state'); if (next.revision !== observedRevision || state.discovering || state.revalidating) await refresh({ apply: true }); } catch (e) { report(e); }
@@ -172,12 +186,13 @@ export function createClient(ctx, appearance, customization) {
         };
         observedRevision = state.revision; monitor = setTimeout(tick, 2000);
       } catch (e) {
+        if (disposed) return;
         let restored = false;
         if (guard) {
-          await api('fail', { token: guard.token, message: e.message }).catch(() => {});
-          try { const next = await refresh(); await render(next.active || 'default', next.activeTheme); restored = true; } catch {}
+          try { receive(await api('fail', { token: guard.token, message: e.message })); await render(state.active || 'default', state.activeTheme); restored = true; }
+          catch (cause) { e = recoveryError(e, cause); }
         }
-        if (!restored) appearance.reset();
+        if (!restored && !disposed) appearance.reset();
         report(e);
       }
     },
@@ -215,6 +230,6 @@ export function createClient(ctx, appearance, customization) {
       } catch (e) { report(e); }
     },
     detail: detail => emit({ detail }), dismiss: () => emit({ error: null }),
-    dispose() { disposed = true; ++serial; clearTimeout(monitor); clearTimeout(reloadTimer); channel?.close(); offAppearance(); externalCleanup?.(); for (const event of ['error', 'unhandledrejection', 'dtp:theme-error']) window.removeEventListener(event, onRuntimeError); listeners.clear(); },
+    dispose() { disposed = true; controller.abort(); ++serial; clearTimeout(monitor); clearTimeout(reloadTimer); channel?.close(); offAppearance(); externalCleanup?.(); for (const event of ['error', 'unhandledrejection', 'dtp:theme-error']) window.removeEventListener(event, onRuntimeError); listeners.clear(); },
   };
 }

@@ -10,10 +10,10 @@ export class Library {
     this.state = await json(this.file, { version: 1, revision: 0, themes: [], issues: [], active: null, previous: null, pending: null });
     if (this.state.version !== 1 || !Array.isArray(this.state.themes)) throw new ThemeError('library-format', '主题库格式损坏；原文件已保留');
     if (this.state.pending) {
-      const pending = this.state.pending;
-      this.recoveredPending = pending;
-      this.state.active = pending.previous || null; this.state.activeDigest = pending.previousDigest; this.state.pending = null;
-      this.state.recovery = { id: pending.id, at: Date.now(), message: '上次主题启用未完成，已保留之前的可用外观。' };
+      // A process restart invalidates confirmation, but only the engine can
+      // restore native plugins and retire this receipt after recovery succeeds.
+      this.state.pending.deadline = 0;
+      this.state.revision++;
       await atomic(this.file, this.state);
     }
   }
@@ -29,7 +29,6 @@ export class Library {
   }
   async snapshot() {
     await this.queue.catch(() => {});
-    if (this.state.pending && this.state.pending.deadline < Date.now()) await this.fail(this.state.pending.token, '主题启用超时，已恢复之前的外观。');
     return structuredClone(this.state);
   }
   async add(theme) {
@@ -37,12 +36,20 @@ export class Library {
       const old = s.themes.find(x => x.id === theme.id);
       // Active revision remains readable until the caller explicitly activates its replacement.
       if (old) {
-        let prior = old.digest === theme.digest ? old.previousRevision
-          : old.digest === s.activeDigest || old.digest === s.previousDigest || !s.activeDigest ? old : old.previousRevision;
-        if (prior?.digest === theme.digest) prior = prior.previousRevision;
-        // Keep the active revision and one rollback revision while a newer
-        // candidate is waiting. Reinstalling a candidate must not lose either.
-        theme.previousRevision = prior ? { ...prior, previousRevision: prior.previousRevision ? { ...prior.previousRevision, previousRevision: undefined } : undefined } : undefined;
+        // Pin every revision referenced by selection, rollback or an in-flight
+        // switch. Unpublished installation candidates never become readable.
+        const retained = new Set([
+          s.active === theme.id && s.activeDigest,
+          s.previous === theme.id && s.previousDigest,
+          s.pending?.id === theme.id && s.pending.digest,
+          s.pending?.previous === theme.id && s.pending.previousDigest,
+          !s.activeDigest && old.digest,
+        ].filter(Boolean));
+        retained.delete(theme.digest);
+        const revisions = [];
+        for (let prior = old; prior; prior = prior.previousRevision) if (retained.delete(prior.digest)) revisions.push(prior);
+        theme.previousRevision = undefined;
+        for (const prior of revisions.reverse()) theme.previousRevision = { ...prior, previousRevision: theme.previousRevision };
       }
       s.themes = [...s.themes.filter(x => x.id !== theme.id), theme];
       s.issues = s.issues.filter(x => x.id !== theme.id);
@@ -51,7 +58,7 @@ export class Library {
   async issue(issue) { return this.mutate(s => { s.issues = [issue, ...s.issues.filter(x => x.id !== issue.id)].slice(0, 80); }); }
   async begin(id, { startup = false } = {}) {
     return this.mutate(s => {
-      if (s.pending && s.pending.deadline > Date.now()) throw new ThemeError('activation-busy', '另一个窗口正在切换主题，请稍后重试');
+      if (s.pending) throw new ThemeError('activation-busy', '另一个窗口正在切换主题，请稍后重试');
       if (!BUILTINS.some(t => t.id === id) && !s.themes.some(t => t.id === id && t.report?.ok)) throw new ThemeError('theme-unchecked', '主题未通过兼容检查');
       const token = randomUUID();
       if (!startup) s.upgrade = null;
@@ -79,7 +86,8 @@ export class Library {
   async remove(id) {
     return this.mutate(s => {
       if (s.pending) throw new ThemeError('activation-busy', '切换完成后再移除主题');
-      if (s.active === id) s.active = 'default';
+      if (s.active === id) { s.active = 'default'; s.activeDigest = undefined; }
+      if (s.previous === id) { s.previous = null; s.previousDigest = undefined; }
       s.themes = s.themes.filter(t => t.id !== id); s.issues = s.issues.filter(t => t.id !== id);
     });
   }

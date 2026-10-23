@@ -23,13 +23,14 @@ export const publicTheme = theme => {
 export class ThemeEngine {
   constructor(ctx, root, { probe } = {}) {
     this.ctx = ctx; this.root = root; this.library = new Library(root); this.market = new Market(root);
-    this.operations = new Map(); this.pendingThemes = new Map(); this.probe = probe; this.cli = resolveCli(ctx);
+    this.operations = new Map(); this.probe = probe; this.cli = resolveCli(ctx);
     this.controller = new AbortController();
+    this.activation = Promise.resolve();
     this.backends = new NativeThemeBackends(ctx, join(root, 'backends'), { cli: this.cli });
   }
   async initialize() {
     await this.library.initialize();
-    if (this.probe) { this.pendingThemes.set(this.probe.id, this.probe); return; }
+    if (this.probe) return;
     const hostEntries = this.library.state.themes.filter(t => isHostThemeService(t.linked?.packageName || t.linked?.name)).map(t => t.id);
     if (hostEntries.length) await this.library.mutate(s => {
       s.themes = s.themes.filter(t => !hostEntries.includes(t.id));
@@ -55,11 +56,10 @@ export class ThemeEngine {
   }
   async initializeNative() {
     this.controller.signal.throwIfAborted();
-    if (this.library.recoveredPending) {
-      const pending = this.library.recoveredPending;
-      try { await this.restoreLinked(this.theme(pending.previous), this.theme(pending.id)); }
-      catch (e) { this.discoveryError = `原生主题恢复需要处理：${e.message}`; }
-    }
+    await this.transition(async () => {
+      const pending = this.library.state.pending;
+      if (pending) await this.restoreActivation(pending.token, '上次主题启用未完成，已恢复之前的选择。', { cold: true });
+    });
     this.controller.signal.throwIfAborted();
     await this.discover({ local: false }).catch(e => { this.discoveryError = e.message; });
     this.controller.signal.throwIfAborted();
@@ -70,14 +70,14 @@ export class ThemeEngine {
   async prepareRevalidation() {
     const stale = this.library.state.themes.filter(t => needsRecheck(t));
     if (!stale.length) return;
-    await this.library.mutate(s => {
+    await this.transition(() => this.library.mutate(s => {
       for (const t of s.themes) if (stale.some(x => x.id === t.id)) t.report = { ...t.report, ok: false, stage: 'host-recheck-required' };
       if (stale.some(t => t.id === s.active)) {
         s.upgrade = { id: s.active, digest: s.activeDigest };
         s.active = 'default'; s.activeDigest = undefined;
         s.recovery = { message: '正在重新检查当前主题的兼容性，主题与设置已保留。', at: Date.now() };
       }
-    });
+    }));
     this.revalidating = true;
     this.revalidation = (async () => {
       for (const old of stale) {
@@ -86,36 +86,47 @@ export class ThemeEngine {
           const theme = await inspectTheme(old.entryFile ? join(old.root, old.entryFile) : old.root, { id: old.id, source: old.source, name: old.name, hostCli: this.cli });
           this.controller.signal.throwIfAborted();
           await this.commitCandidate(theme, () => {});
-          await this.library.mutate(s => {
+          await this.transition(() => this.library.mutate(s => {
             if (s.upgrade?.id === theme.id && s.active === 'default') { s.active = theme.id; s.activeDigest = theme.digest; s.recovery = null; }
             if (s.upgrade?.id === theme.id) s.upgrade = null;
-          });
+          }));
         } catch (e) {
-          await this.library.issue({ id: old.id, name: old.name, at: Date.now(), message: e.message, code: e.code || 'host-recheck',
-            repair: repairTask({ theme: old, error: e, report: e.details || {} }) });
+          if (this.controller.signal.aborted) break;
+          await this.transition(() => this.library.issue({ id: old.id, name: old.name, at: Date.now(), message: e.message, code: e.code || 'host-recheck',
+            repair: repairTask({ theme: old, error: e, report: e.details || {} }) }));
         }
       }
     })().catch(e => { this.discoveryError = e.message; }).finally(() => { this.revalidating = false; });
   }
   async state() {
     await this.initialization;
-    this.controller.signal.throwIfAborted();
-    if (this.library.state.pending?.deadline < Date.now()) await this.fail(this.library.state.pending.token, '主题启用超时，已恢复之前的外观。');
-    let state = await this.library.snapshot();
-    try { await this.backends.start(this.probe || this.theme(state.active, state.activeDigest)); }
-    catch (error) {
-      if (this.probe) throw error;
-      await this.backends.retain([]);
-      await this.library.mutate(s => {
-        s.active = 'default'; s.activeDigest = undefined; s.pending = null;
-        s.recovery = { message: `主题恢复失败，已使用 DSH 原生外观：${error.message}`, at: Date.now() };
-      });
-      state = await this.library.snapshot();
-    }
+    return this.transition(async () => {
+      await this.expireActivation();
+      let state = await this.library.snapshot();
+      // The pending receipt owns the runtime until the client confirms or
+      // recovery finishes. Reading the library must not remount its predecessor.
+      if (!state.pending) try {
+        const active = this.probe || this.theme(state.active, state.activeDigest);
+        await this.backends.retain([active]);
+        await this.backends.start(active);
+      } catch (error) {
+        if (this.probe || this.controller.signal.aborted) throw error;
+        await this.backends.retain([]);
+        await this.library.mutate(s => {
+          s.active = 'default'; s.activeDigest = undefined;
+          s.recovery = { message: `主题恢复失败，已使用 DSH 原生外观：${error.message}`, at: Date.now() };
+        });
+        state = await this.library.snapshot();
+      }
+      return this.describe(state);
+    });
+  }
+  describe(state) {
     return { ...state, themes: state.themes.map(publicTheme), activeTheme: publicTheme(this.theme(state.active, state.activeDigest)), version: VERSION, hostVersion: HOST_VERSION,
       discoveryError: this.discoveryError, discovering: !!this.discovering, revalidating: !!this.revalidating, probe: this.probe ? publicTheme(this.probe) : null };
   }
   start(task, metadata) {
+    this.controller.signal.throwIfAborted();
     const id = randomUUID(), operation = { id, state: 'running', phase: '准备主题', startedAt: Date.now(), ...metadata };
     this.operations.set(id, operation);
     void (async () => {
@@ -126,7 +137,7 @@ export class ThemeEngine {
         const theme = error.details?.theme || metadata?.theme || {};
         operation.error = { ...failure, report, repair: repairTask({ theme, error: failure, report }) };
         operation.state = 'failed';
-        await this.library.issue({ id: theme.id || id, name: theme.name || '导入的主题', at: Date.now(), ...operation.error }).catch(() => {});
+        await this.transition(() => this.library.issue({ id: theme.id || id, name: theme.name || '导入的主题', at: Date.now(), ...operation.error })).catch(() => {});
       } finally {
         operation.finishedAt = Date.now();
         for (const [key, old] of this.operations) if (old.finishedAt && Date.now() - old.finishedAt > 60 * 60 * 1000) this.operations.delete(key);
@@ -186,7 +197,6 @@ export class ThemeEngine {
   }
   async commitCandidate(theme, progress) {
     this.controller.signal.throwIfAborted();
-    this.pendingThemes.set(theme.id, theme);
     try {
       progress(needsRuntimeProbe(theme) ? '在隔离 DSH 中验证加载与切换' : '校验完成，保存主题');
       theme.report = await preflight(theme, { root: this.root, cli: this.cli, signal: this.controller.signal, progress });
@@ -208,12 +218,12 @@ export class ThemeEngine {
         for (const [name, hash] of Object.entries(theme.files)) if (digest(await readFile(await ownedFile(target, name))) !== hash) throw new ThemeError('installed-resource-changed', '已存主题资源发生变化，请先移除该主题后重新安装');
       }
       theme.root = target; theme.installedAt = Date.now();
-      await this.library.add(theme);
+      await this.transition(() => this.library.add(theme));
       return theme;
     } catch (e) {
       e.details = { ...e.details, theme: { id: theme.id, name: theme.name, version: theme.version, format: theme.format, digest: theme.digest, source: theme.source }, compatibility: theme.report };
       throw e;
-    } finally { this.pendingThemes.delete(theme.id); }
+    }
   }
   async importData({ name, data }, progress) {
     if (typeof data !== 'string' || data.length > 110 * 1024 * 1024) throw new ThemeError('import-size', '导入文件过大');
@@ -268,7 +278,7 @@ export class ThemeEngine {
         this.controller.signal.throwIfAborted();
         const id = 'discovered-' + digest(source.bundle?.name || source.entry?.entryId || source.path).slice(0, 24);
         if (this.library.state.themes.some(x => x.id === id)) {
-          if (this.library.state.active === null && (source.bundle || source.entry)?.enabled) await this.library.mutate(s => { s.active = id; });
+          if ((source.bundle || source.entry)?.enabled) await this.adoptLinked(id);
           continue;
         }
         try {
@@ -284,27 +294,47 @@ export class ThemeEngine {
               description: isNativeThemeController(pkg.name) ? '沿用 Skin Center 当前选择的主题和设置。' : skin.description || pkg.description, version: pkg.version,
               source: { spec: source.bundle?.source || 'existing-local', resolved: pkg.version }, linked: { name, packageName: pkg.name, enabled: original.enabled, entryId: source.entry?.entryId, readOnly: source.entry?.readOnlyReason },
               report: { ok: true, stage: 'existing-plugin', runtime: 'native-managed', note: '已安装主题，由 DSH 原生管理；不代表已完成独立转包验证。' } };
-            await this.library.add(theme);
-            if (original.enabled && this.library.state.active === null) await this.library.mutate(s => { s.active = id; });
+            await this.transition(() => this.library.add(theme));
+            if (original.enabled) await this.adoptLinked(id);
           } else {
             theme = await inspectTheme(source.path, { id, hostCli: this.cli, source: { spec: 'existing-local', resolved: '' } });
             await this.commitCandidate(theme, () => {});
           }
         } catch (e) {
           const error = { code: e.code || 'discovery', message: e.message };
-          await this.library.issue({ id, name: source.bundle?.name || basename(source.path), at: Date.now(), ...error,
-            repair: repairTask({ theme: { name: source.bundle?.name || basename(source.path) }, error, report: e.details || {} }) });
+          await this.transition(() => this.library.issue({ id, name: source.bundle?.name || basename(source.path), at: Date.now(), ...error,
+            repair: repairTask({ theme: { name: source.bundle?.name || basename(source.path) }, error, report: e.details || {} }) }));
         }
       }
     } finally { this.discovering = false; }
   }
+  adoptLinked(id) {
+    return this.transition(() => {
+      if (this.library.state.active !== null || this.library.state.pending) return;
+      return this.library.mutate(s => { s.active = id; s.activeDigest = this.theme(id)?.digest; });
+    });
+  }
   theme(id, hash) {
-    const value = this.pendingThemes.get(id) || this.library.state.themes.find(t => t.id === id);
-    if (value?.digest === hash || !hash) return value;
-    for (let revision = value?.previousRevision; revision; revision = revision.previousRevision) if (revision.digest === hash) return revision;
+    const value = this.probe?.id === id ? this.probe : this.library.state.themes.find(t => t.id === id);
+    if (!hash) return value;
+    for (let revision = value; revision; revision = revision.previousRevision) if (revision.digest === hash) return revision;
     return null;
   }
-  async activate(id, { startup = false } = {}) {
+  transition(action) {
+    // File writes alone cannot serialize native plugin disposal and startup.
+    // Keep those effects and their persistent receipt under the same owner.
+    const run = this.activation.catch(() => {}).then(() => { this.controller.signal.throwIfAborted(); return action(); });
+    this.activation = run;
+    return run;
+  }
+  async expireActivation() {
+    const pending = this.library.state.pending;
+    if (pending && pending.deadline <= Date.now()) await this.restoreActivation(pending.token, '主题启用超时，已恢复之前的外观。');
+  }
+  activate(id, options) {
+    return this.transition(async () => { await this.expireActivation(); return this.beginActivation(id, options); });
+  }
+  async beginActivation(id, { startup = false } = {}) {
     const candidate = await this.library.begin(id, { startup });
     const theme = this.theme(id, candidate.digest), previous = this.theme(candidate.previous, candidate.previousDigest);
     try {
@@ -314,11 +344,12 @@ export class ThemeEngine {
         await this.backends.retain([]);
         await this.toggleLinked(theme, true);
       }
+      this.controller.signal.throwIfAborted();
       candidate.theme = publicTheme(theme);
       candidate.previousTheme = publicTheme(previous);
       return candidate;
     } catch (e) {
-      await this.fail(candidate.token, e.message); throw e;
+      await this.restoreActivation(candidate.token, e.message); throw e;
     }
   }
   async toggleLinked(theme, enabled) {
@@ -336,18 +367,55 @@ export class ThemeEngine {
     if (previous?.linked) try { await this.toggleLinked(previous, true); } catch (e) { errors.push(e.message); }
     if (errors.length) throw Error(errors.join('；'));
   }
-  async fail(token, message) {
+  fail(token, message) {
+    return this.transition(async () => {
+      await this.restoreActivation(token, message);
+      return this.describe(await this.library.snapshot());
+    });
+  }
+  async restoreActivation(token, message, { cold = false } = {}) {
     if (this.library.state.pending?.token !== token) return;
     const previous = this.theme(this.library.state.pending?.previous, this.library.state.pending?.previousDigest), candidate = this.theme(this.library.state.pending?.id, this.library.state.pending?.digest);
+    if (this.library.state.pending.deadline !== 0) await this.library.mutate(s => { s.pending.deadline = 0; });
     await this.backends.retain([previous]);
-    try { await this.restoreLinked(previous, candidate); } catch (e) { message += `；原生主题恢复：${e.message}`; }
-    const result = await this.library.fail(token, message);
-    await this.backends.start(previous);
-    return result;
+    await this.restoreLinked(previous, candidate);
+    // After a process restart there is no managed backend to recover yet.
+    // Host compatibility revalidation must run before its first cold start.
+    if (!cold) {
+      if (previous && needsRecheck(previous)) throw new ThemeError('host-recheck-required', '原主题需要重新检查当前宿主兼容性，请重新导入后恢复');
+      await this.backends.start(previous);
+    }
+    return this.library.fail(token, message);
   }
-  async commit(token) {
+  commit(token) {
+    return this.transition(async () => {
+      await this.expireActivation();
+      await this.commitActivation(token);
+      return this.describe(await this.library.snapshot());
+    });
+  }
+  async commitActivation(token) {
     await this.library.commit(token);
     await this.backends.retain([this.theme(this.library.state.active, this.library.state.activeDigest)]);
   }
-  dispose() { this.offReady?.(); this.controller.abort(); this.resolveInitialization?.(); this.backends.dispose(); }
+  remove(id) {
+    return this.transition(async () => {
+      await this.expireActivation();
+      if (this.library.state.active === id) {
+        const pending = await this.beginActivation('default');
+        await this.commitActivation(pending.token);
+      }
+      await this.library.remove(id);
+      return this.describe(await this.library.snapshot());
+    });
+  }
+  dispose() {
+    this.offReady?.(); this.controller.abort(); this.resolveInitialization?.();
+    return this.disposal ||= this.activation.catch(() => {}).then(async () => {
+      try {
+        const pending = this.library.state?.pending;
+        if (pending) await this.restoreActivation(pending.token, '主题管理已停止，已恢复之前的外观。');
+      } finally { await this.backends.dispose(); }
+    });
+  }
 }

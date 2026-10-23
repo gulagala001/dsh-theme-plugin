@@ -82,7 +82,7 @@ test('installation copies the checked files even when parent directories are hid
   assert.equal(await readFile(join(installed.root, 'theme.json'), 'utf8'), await readFile(join(source, 'theme.json'), 'utf8'));
   engine.dispose();
 }));
-test('failed update and process interruption recover the last active revision', () => temporary(async root => {
+test('failed updates retain the active revision and interrupted switches retain their recovery receipt', () => temporary(async root => {
   const library = new Library(root); await library.initialize();
   await library.add({ id: 'sample', digest: 'old', report: { ok: true } });
   await library.commit((await library.begin('sample')).token);
@@ -96,7 +96,8 @@ test('failed update and process interruption recover the last active revision', 
   await library.begin('sample');
   const restarted = new Library(root); await restarted.initialize();
   assert.equal(restarted.state.activeDigest, 'old');
-  assert.equal(restarted.state.pending, null);
+  assert.equal(restarted.state.pending.id, 'sample');
+  assert.equal(restarted.state.pending.deadline, 0);
 }));
 test('native theme adoption avoids duplicate installs and restores exclusive routes after failure', () => temporary(async root => {
   let route = 'native';

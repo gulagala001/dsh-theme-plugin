@@ -53,7 +53,6 @@ export async function apply(ctx, config = {}) {
         if (!theme?.client) throw new ThemeError('theme-missing', '主题客户端版本不存在');
         const bytes = await readFile(await ownedFile(theme.root, theme.client.path));
         if (digest(bytes) !== theme.files[theme.client.path]) throw new ThemeError('resource-changed', '主题入口在检查后发生变化，请重新导入');
-        await engine.backends.start(theme);
         res.writeHead(200, { 'Content-Type': 'text/javascript', 'Cache-Control': 'private, max-age=31536000, immutable', 'X-Content-Type-Options': 'nosniff' });
         res.end(theme.client.code); return;
       }
@@ -76,6 +75,7 @@ export async function apply(ctx, config = {}) {
       }
       if (req.method !== 'POST') { send(res, 405, { error: 'POST required' }); return; }
       const data = await body(req);
+      engine.controller.signal.throwIfAborted();
       if (path === '/preferences') {
         if (!engine.theme(data.id) || typeof data.namespace !== 'string' || data.namespace.length > 200) throw new ThemeError('settings-scope', '主题设置范围无效');
         const file = join(root, 'preferences', data.id, digest(data.namespace) + '.json');
@@ -121,9 +121,9 @@ export async function apply(ctx, config = {}) {
       if (path === '/import') { send(res, 202, engine.start(progress => engine.importData(data, progress), { theme: { name: data.name } })); return; }
       if (path === '/discover') { send(res, 202, engine.start(async () => { await engine.discover(); return engine.state(); })); return; }
       if (path === '/activate') { send(res, 200, await engine.activate(data.id, { startup: data.startup === true })); return; }
-      if (path === '/commit') { await engine.commit(data.token); send(res, 200, await engine.state()); return; }
-      if (path === '/fail') { await engine.fail(data.token, String(data.message || '主题加载失败').slice(0, 2000)); send(res, 200, await engine.state()); return; }
-      if (path === '/remove') { await engine.library.remove(data.id); send(res, 200, await engine.state()); return; }
+      if (path === '/commit') { send(res, 200, await engine.commit(data.token)); return; }
+      if (path === '/fail') { send(res, 200, await engine.fail(data.token, String(data.message || '主题加载失败').slice(0, 2000))); return; }
+      if (path === '/remove') { send(res, 200, await engine.remove(data.id)); return; }
       if (path === '/export') {
         const theme = engine.theme(data.id); if (!theme) throw new ThemeError('theme-missing', '主题不存在');
         if (theme.linked) throw new ThemeError('native-export', '此主题由 DSH 原生插件管理，请使用原项目提供的安装包');

@@ -61,6 +61,8 @@ Skin Center hooks v1alpha1 与 Deep Whale customization v1/v2 沿用上游接口
 
 市场、下载、主题库和事务层不应引用宿主页面类名。遇到多个主题共享的故障，优先修复协议或宿主适配层；特殊主题规则记录来源与匹配条件，避免无界补丁积累。
 
+启用状态由 `library.json` 的当前选择、摘要与待确认记录维护。`ThemeEngine` 串行处理后台启停、确认、失败、超时与移除，并在后台恢复成功后才清除待确认记录；库快照和客户端资源读取不执行另一套恢复或启用逻辑。安装候选检查完成后才进入库，已引用版本继续保留在原有版本链中。客户端直接采用确认／恢复响应，按现有 revision 拒绝迟到状态；停用时终止请求并忽略迟到回执。相关故障交错回归在 `test/activation-consistency.test.mjs`，随现有 `pnpm test` 进入 CI。
+
 首页截图与 GIF 动图放在 `docs/images/`，中英文首页同步，显示尺寸不超过素材原宽；来源、尺寸与哈希记录在 `docs/images/readme-screenshots.json`。更新素材后运行 `npm run docs:check`，公开文件与安装包检查由 `scripts/check-package.mjs` 执行。
 
 每版（含补丁版）新增 `docs/releases/v<完整版本>.md` 并登记 `docs/structure.json`；`CHANGELOG.md` 同步当前完整双语正文，历史页面保留。当前导航与固定安装入口同步新版，tag 与 Release 使用相同的分类、正文和精确宿主安装表。

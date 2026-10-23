@@ -28,6 +28,8 @@ Each dynamic candidate gets its own disposable DSH profile and browser. Checks c
 
 Themes that alter boot HTML trigger a page refresh after switching. Unsent drafts and attachments defer that refresh. Installation failures retain the active appearance; activation failures restore the previous choice. Relevant host/adapter updates trigger rechecks while retaining theme files and configuration.
 
+Reading the library, loading old page resources or installing an update during a switch does not restart the previous backend. Current, pending and rollback revisions retain their exact digests. The page uses the host's confirmation or recovery result; older responses cannot replace a newer selection. After interruption, the next operation or host startup restores the previous choice first. Failed recovery retains its receipt and reports the error; old confirmations and new switches remain blocked until recovery completes. Removing the current theme restores the native appearance and releases its backend. Once theme management is disposed, late requests cannot continue confirmation or change the page.
+
 The 2026-10-20 batch used a fixed snapshot of **549 deduplicated catalog entries**, prepared each entry and exercised runnable candidates in the real host. Affected candidates were rerun after shared fixes: **454 passed basic runtime checks; 95 remained blocked**, including obsolete themes, unavailable/incomplete sources and runtime failures. Blocked entries are not counted as compatible. Live catalog totals change; inclusion is not a passing compatibility result.
 
 | Representative theme | Validation |

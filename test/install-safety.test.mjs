@@ -34,7 +34,7 @@ test('startup does not await native preset inventory before the host is ready', 
     assert.equal(reads, 1);
     assert.equal(exposed, false);
     releaseInventory();
-    assert.equal((await state).version, '0.2.1-dsh.0.2.1-rc.2');
+    assert.equal((await state).version, '0.2.2-dsh.0.2.1-rc.2');
     await engine.discovery;
   } finally { releaseInventory(); engine.dispose(); }
 }));

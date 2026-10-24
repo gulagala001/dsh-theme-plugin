@@ -75,6 +75,11 @@
       "path": "docs/releases/v0.2.2-dsh.0.2.1-rc.2.md",
       "role": "release",
       "language": "bilingual"
+    },
+    {
+      "path": "docs/releases/v0.2.3-dsh.0.2.1-rc.3.md",
+      "role": "release",
+      "language": "bilingual"
     }
   ]
 }

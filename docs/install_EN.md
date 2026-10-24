@@ -2,7 +2,7 @@
 
 [简体中文](install.md)
 
-Version **0.2.0** targets **DSH 0.2.1-rc.2**, **Cordis 4.0.5** and **Node.js 22.19+**. Other host versions are not declared supported. Install into the profile you actually use; this plugin does not upgrade the host.
+Version **0.2.0** targets **DSH 0.2.1-rc.3**, **Cordis 4.0.5** and **Node.js 22.19+**. Other host versions are not declared supported. Install into the profile you actually use; this plugin does not upgrade the host.
 
 ## Add the plugin
 
@@ -12,7 +12,7 @@ Version **0.2.0** targets **DSH 0.2.1-rc.2**, **Cordis 4.0.5** and **Node.js 22.
 4. Open **Settings → Appearance** for Appearance settings, Theme management and Market.
 
 ```text
-https://github.com/gulagala001/dsh-theme-plugin/releases/download/v0.2.2-dsh.0.2.1-rc.2/gulagala001-dsh-theme-plugin-0.2.2-dsh.0.2.1-rc.2.tgz
+https://github.com/gulagala001/dsh-theme-plugin/releases/download/v0.2.3-dsh.0.2.1-rc.3/gulagala001-dsh-theme-plugin-0.2.3-dsh.0.2.1-rc.3.tgz
 ```
 
 The identifier is `@gulagala001/dsh-theme-plugin`. This release is not published to npm; do not install the unrelated unscoped package.
@@ -20,19 +20,19 @@ The identifier is `@gulagala001/dsh-theme-plugin`. This release is not published
 CLI example for the `web` profile; replace it with your actual profile name:
 
 ```sh
-dsh plugin --profile web add https://github.com/gulagala001/dsh-theme-plugin/releases/download/v0.2.2-dsh.0.2.1-rc.2/gulagala001-dsh-theme-plugin-0.2.2-dsh.0.2.1-rc.2.tgz
+dsh plugin --profile web add https://github.com/gulagala001/dsh-theme-plugin/releases/download/v0.2.3-dsh.0.2.1-rc.3/gulagala001-dsh-theme-plugin-0.2.3-dsh.0.2.1-rc.3.tgz
 ```
 
 ## AI-assisted installation
 
 ```text
-Identify my target DSH instance and profile, and confirm that its host version is 0.2.1-rc.2.
+Identify my target DSH instance and profile, and confirm that its host version is 0.2.1-rc.3.
 Install the fixed release below into that profile. The package identifier must be @gulagala001/dsh-theme-plugin.
 Preserve configuration, conversations, original theme packages and user data. Do not install the unrelated unscoped npm package.
 Do not upgrade DSH automatically. Before any required restart, check for active work and identify the instance to restart.
 Confirm that Settings → Appearance contains Appearance settings, Theme management and Market.
-Archive: https://github.com/gulagala001/dsh-theme-plugin/releases/download/v0.2.2-dsh.0.2.1-rc.2/gulagala001-dsh-theme-plugin-0.2.2-dsh.0.2.1-rc.2.tgz
-Checksums: https://github.com/gulagala001/dsh-theme-plugin/releases/download/v0.2.2-dsh.0.2.1-rc.2/SHA256SUMS
+Archive: https://github.com/gulagala001/dsh-theme-plugin/releases/download/v0.2.3-dsh.0.2.1-rc.3/gulagala001-dsh-theme-plugin-0.2.3-dsh.0.2.1-rc.3.tgz
+Checksums: https://github.com/gulagala001/dsh-theme-plugin/releases/download/v0.2.3-dsh.0.2.1-rc.3/SHA256SUMS
 ```
 
 ## Themes, updates and removal

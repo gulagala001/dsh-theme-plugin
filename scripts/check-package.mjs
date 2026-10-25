@@ -5,8 +5,10 @@ import { isAbsolute, join, resolve } from 'node:path';
 import { gunzipSync } from 'node:zlib';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
+import { VERSION } from '../src/shared/protocol.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url)).replace(/\/$/, '');
+if (VERSION !== JSON.parse(await readFile(join(root, 'package.json'), 'utf8')).version) throw Error('Internal theme version must match package.json');
 const sha256 = bytes => createHash('sha256').update(bytes).digest('hex');
 const allowed = /^(?:\.gitignore|\.github\/workflows\/(?:check|documentation-structure|release-assets)\.yml|package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|cordis\.patch\.yml|README(?:_EN)?\.md|CHANGELOG\.md|LICENSE|THIRD_PARTY_NOTICES\.md|src\/(?:[\w.-]+\/)*[\w.-]+|lib\/client\.js|scripts\/(?:build|check-package|check-docs|check-release-assets|theme)\.mjs|test\/[\w.-]+\.test\.mjs|docs\/(?:[\w.-]+\/)*[\w.-]+\.(?:md|png|gif|json)|assets\/builtin\/[\w.-]+\.(?:jpg|css)|vendor\/appearance\/(?:[\w.-]+\/)*[\w.-]+\.(?:mjs|jsx|css|json)|vendor\/(?:font-licenses|licenses)\/[\w.-]+\.txt)$/;
 

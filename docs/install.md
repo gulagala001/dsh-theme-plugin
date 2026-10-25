@@ -12,7 +12,7 @@
 4. 打开 **设置 → 外观**，使用外观设置、主题管理和市场三个页面。
 
 ```text
-https://github.com/gulagala001/dsh-theme-plugin/releases/download/v0.2.5-dsh.0.2.1-rc.3/gulagala001-dsh-theme-plugin-0.2.5-dsh.0.2.1-rc.3.tgz
+https://github.com/gulagala001/dsh-theme-plugin/releases/download/v0.2.6-dsh.0.2.1-rc.3/gulagala001-dsh-theme-plugin-0.2.6-dsh.0.2.1-rc.3.tgz
 ```
 
 安装标识是 `@gulagala001/dsh-theme-plugin`；不要从 npm 安装无作用域的同名包。当前不提供 npm 发布。
@@ -20,7 +20,7 @@ https://github.com/gulagala001/dsh-theme-plugin/releases/download/v0.2.5-dsh.0.2
 CLI 用户可在实际使用的 profile 安装。以下示例目标是 `web`；使用不同 profile 时替换该名称：
 
 ```sh
-dsh plugin --profile web add https://github.com/gulagala001/dsh-theme-plugin/releases/download/v0.2.5-dsh.0.2.1-rc.3/gulagala001-dsh-theme-plugin-0.2.5-dsh.0.2.1-rc.3.tgz
+dsh plugin --profile web add https://github.com/gulagala001/dsh-theme-plugin/releases/download/v0.2.6-dsh.0.2.1-rc.3/gulagala001-dsh-theme-plugin-0.2.6-dsh.0.2.1-rc.3.tgz
 ```
 
 ## 复制给 AI 安装
@@ -31,8 +31,8 @@ dsh plugin --profile web add https://github.com/gulagala001/dsh-theme-plugin/rel
 保留已有配置、会话、主题原包和用户数据；不要安装无作用域 npm 同名包。
 不要自动升级 DSH。需要重启时先检查是否有任务运行，并说明要重启哪个实例。
 安装完成后确认设置 → 外观具有外观设置、主题管理、市场三个子页。
-安装包：https://github.com/gulagala001/dsh-theme-plugin/releases/download/v0.2.5-dsh.0.2.1-rc.3/gulagala001-dsh-theme-plugin-0.2.5-dsh.0.2.1-rc.3.tgz
-校验值：https://github.com/gulagala001/dsh-theme-plugin/releases/download/v0.2.5-dsh.0.2.1-rc.3/SHA256SUMS
+安装包：https://github.com/gulagala001/dsh-theme-plugin/releases/download/v0.2.6-dsh.0.2.1-rc.3/gulagala001-dsh-theme-plugin-0.2.6-dsh.0.2.1-rc.3.tgz
+校验值：https://github.com/gulagala001/dsh-theme-plugin/releases/download/v0.2.6-dsh.0.2.1-rc.3/SHA256SUMS
 ```
 
 ## 主题安装与恢复

@@ -12,7 +12,7 @@ Version **0.2.0** targets **DSH 0.2.1-rc.3**, **Cordis 4.0.5** and **Node.js 22.
 4. Open **Settings → Appearance** for Appearance settings, Theme management and Market.
 
 ```text
-https://github.com/gulagala001/dsh-theme-plugin/releases/download/v0.2.3-dsh.0.2.1-rc.3/gulagala001-dsh-theme-plugin-0.2.3-dsh.0.2.1-rc.3.tgz
+https://github.com/gulagala001/dsh-theme-plugin/releases/download/v0.2.4-dsh.0.2.1-rc.3/gulagala001-dsh-theme-plugin-0.2.4-dsh.0.2.1-rc.3.tgz
 ```
 
 The identifier is `@gulagala001/dsh-theme-plugin`. This release is not published to npm; do not install the unrelated unscoped package.
@@ -20,7 +20,7 @@ The identifier is `@gulagala001/dsh-theme-plugin`. This release is not published
 CLI example for the `web` profile; replace it with your actual profile name:
 
 ```sh
-dsh plugin --profile web add https://github.com/gulagala001/dsh-theme-plugin/releases/download/v0.2.3-dsh.0.2.1-rc.3/gulagala001-dsh-theme-plugin-0.2.3-dsh.0.2.1-rc.3.tgz
+dsh plugin --profile web add https://github.com/gulagala001/dsh-theme-plugin/releases/download/v0.2.4-dsh.0.2.1-rc.3/gulagala001-dsh-theme-plugin-0.2.4-dsh.0.2.1-rc.3.tgz
 ```
 
 ## AI-assisted installation
@@ -31,8 +31,8 @@ Install the fixed release below into that profile. The package identifier must b
 Preserve configuration, conversations, original theme packages and user data. Do not install the unrelated unscoped npm package.
 Do not upgrade DSH automatically. Before any required restart, check for active work and identify the instance to restart.
 Confirm that Settings → Appearance contains Appearance settings, Theme management and Market.
-Archive: https://github.com/gulagala001/dsh-theme-plugin/releases/download/v0.2.3-dsh.0.2.1-rc.3/gulagala001-dsh-theme-plugin-0.2.3-dsh.0.2.1-rc.3.tgz
-Checksums: https://github.com/gulagala001/dsh-theme-plugin/releases/download/v0.2.3-dsh.0.2.1-rc.3/SHA256SUMS
+Archive: https://github.com/gulagala001/dsh-theme-plugin/releases/download/v0.2.4-dsh.0.2.1-rc.3/gulagala001-dsh-theme-plugin-0.2.4-dsh.0.2.1-rc.3.tgz
+Checksums: https://github.com/gulagala001/dsh-theme-plugin/releases/download/v0.2.4-dsh.0.2.1-rc.3/SHA256SUMS
 ```
 
 ## Themes, updates and removal

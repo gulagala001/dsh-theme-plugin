@@ -7,7 +7,7 @@
 <p align="center"><a href="README.md">简体中文</a> · <strong>English</strong></p>
 
 <p align="center">
-  <a href="https://github.com/gulagala001/dsh-theme-plugin/releases/tag/v0.2.3-dsh.0.2.1-rc.3"><img alt="0.2.2" src="https://img.shields.io/badge/release-0.2.3-0969da?style=flat-square"></a>
+  <a href="https://github.com/gulagala001/dsh-theme-plugin/releases/tag/v0.2.4-dsh.0.2.1-rc.3"><img alt="0.2.2" src="https://img.shields.io/badge/release-0.2.3-0969da?style=flat-square"></a>
   <a href="https://github.com/gulagala001/dsh-theme-plugin/releases"><img alt="GitHub total downloads" src="https://img.shields.io/github/downloads/gulagala001/dsh-theme-plugin/total?style=flat-square&amp;label=GitHub%20downloads&amp;color=0969da"></a>
   <a href="#readme-install"><img alt="DSH 0.2.1-rc.3" src="https://img.shields.io/badge/DSH-0.2.1--rc.3-0969da?style=flat-square"></a>
   <a href="https://github.com/gulagala001/dsh-theme-plugin/stargazers"><img alt="GitHub Stars" src="https://img.shields.io/github/stars/gulagala001/dsh-theme-plugin?style=flat-square&amp;color=0969da"></a>
@@ -32,10 +32,10 @@ Compatibility targets the supported DSH version, without restoring obsolete them
 Open **Plugins → Add plugin** in the DSH instance you use, then paste:
 
 ```text
-https://github.com/gulagala001/dsh-theme-plugin/releases/download/v0.2.3-dsh.0.2.1-rc.3/gulagala001-dsh-theme-plugin-0.2.3-dsh.0.2.1-rc.3.tgz
+https://github.com/gulagala001/dsh-theme-plugin/releases/download/v0.2.4-dsh.0.2.1-rc.3/gulagala001-dsh-theme-plugin-0.2.4-dsh.0.2.1-rc.3.tgz
 ```
 
-Wait for active tasks to finish, then follow the host’s activation/restart prompt. Keep your existing profile and data. See the [installation guide](docs/install_EN.md) · [SHA256SUMS](https://github.com/gulagala001/dsh-theme-plugin/releases/download/v0.2.3-dsh.0.2.1-rc.3/SHA256SUMS).
+Wait for active tasks to finish, then follow the host’s activation/restart prompt. Keep your existing profile and data. See the [installation guide](docs/install_EN.md) · [SHA256SUMS](https://github.com/gulagala001/dsh-theme-plugin/releases/download/v0.2.4-dsh.0.2.1-rc.3/SHA256SUMS).
 
 ### 2. Try this first
 

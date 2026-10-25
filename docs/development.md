@@ -67,4 +67,4 @@ Skin Center hooks v1alpha1 与 Deep Whale customization v1/v2 沿用上游接口
 
 首页截图与 GIF 动图放在 `docs/images/`，中英文首页同步，显示尺寸不超过素材原宽；来源、尺寸与哈希记录在 `docs/images/readme-screenshots.json`。更新素材后运行 `npm run docs:check`，公开文件与安装包检查由 `scripts/check-package.mjs` 执行。
 
-每版（含补丁版）新增 `docs/releases/v<完整版本>.md` 并登记 `docs/structure.json`；`CHANGELOG.md` 同步当前完整双语正文，历史页面保留。当前导航与固定安装入口同步新版，tag 与 Release 使用相同的分类、正文和精确宿主安装表。
+每版（含补丁版）新增 `docs/releases/v<完整版本>.md`（当前示例：`docs/releases/v0.2.4-dsh.0.2.1-rc.3.md`） 并登记 `docs/structure.json`；`CHANGELOG.md` 同步当前完整双语正文，历史页面保留。当前导航与固定安装入口同步新版，tag 与 Release 使用相同的分类、正文和精确宿主安装表。

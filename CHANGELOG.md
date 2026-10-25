@@ -1,3 +1,39 @@
+# DSH Theme 0.2.4 · DSH 0.2.1-rc.3
+
+[中文](#zh-024) | [English](#en-024)
+
+<a id="zh-024"></a>
+
+## 中文
+
+### 问题修复
+
+- 修复 DSH rc.3 视图标签区域占满宽度导致的标题挤压、按钮越界与异常换行。
+- 统一嵌套标签间距、空占位和角落按钮边距，补齐 Codex 主题的横向布局及 macOS 顶栏预留。
+
+<a id="en-024"></a>
+
+## English
+
+### Bug Fixes
+
+- Fix the full-width rc.3 view row squeezing titles, overflowing actions and causing unwanted header wrapping.
+- Align nested tab spacing, empty leading slots and corner-button margins, and complete Codex theme geometry and macOS header clearance.
+
+## 安装 / Installation
+
+在 **插件 → 添加插件** 使用下方固定包。精确宿主为 **DSH 0.2.1-rc.3**；保留原 profile、配置和正式会话，待任务结束后完整重启。
+
+Install the fixed package through **Plugins → Add plugin** on **DSH 0.2.1-rc.3**. Preserve the profile, settings and existing conversations, then restart after active tasks finish.
+
+| DSH | 固定安装包 / Fixed package | SHA256SUMS |
+| --- | --- | --- |
+| 0.2.1-rc.3 | [DSH Theme 0.2.4](https://github.com/gulagala001/dsh-theme-plugin/releases/download/v0.2.4-dsh.0.2.1-rc.3/gulagala001-dsh-theme-plugin-0.2.4-dsh.0.2.1-rc.3.tgz) | [SHA256SUMS](https://github.com/gulagala001/dsh-theme-plugin/releases/download/v0.2.4-dsh.0.2.1-rc.3/SHA256SUMS) |
+
+[安装指南](https://github.com/gulagala001/dsh-theme-plugin/blob/main/docs/install.md) · [Installation guide](https://github.com/gulagala001/dsh-theme-plugin/blob/main/docs/install_EN.md)
+
+---
+
 # DSH Theme 0.2.3 · DSH 0.2.1-rc.3
 
 [中文](#zh-023) | [English](#en-023)

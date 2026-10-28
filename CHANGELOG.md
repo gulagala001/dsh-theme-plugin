@@ -1,12 +1,10 @@
-# DSH Theme 0.3.0 · DSH 0.2.1-rc.3 · 未发布 / Unreleased
+# DSH Theme 0.3.0 · DSH 0.2.1-rc.3
 
 [中文](#zh-030) | [English](#en-030)
 
 <a id="zh-030"></a>
 
 ## 中文
-
-本版正在准备，尚未公开发布。
 
 ### 新增功能
 
@@ -21,8 +19,6 @@
 
 ## English
 
-This release is being prepared and has not been published.
-
 ### New Features
 
 - Add the Claude Desktop appearance across light/dark surfaces, messages, composer, model selection, attachments, reasoning and tool states.
@@ -34,13 +30,13 @@ This release is being prepared and has not been published.
 
 ## 安装 / Installation
 
-精确宿主为 **DSH 0.2.1-rc.3**。待发布包名为 `gulagala001-dsh-theme-plugin-0.3.0-dsh.0.2.1-rc.3.tgz`；当前公开安装入口继续使用下方已发布版本。保留 profile、配置与会话，按宿主提示在任务结束后重新加载。
+精确宿主为 **DSH 0.2.1-rc.3**。在 **插件 → 添加插件** 中粘贴下方固定包地址。保留 profile、配置与会话，按宿主提示在任务结束后重新加载。
 
-The exact host is **DSH 0.2.1-rc.3**. The prepared package is `gulagala001-dsh-theme-plugin-0.3.0-dsh.0.2.1-rc.3.tgz`; use the existing published package below until this release is available. Preserve profiles, configuration and conversations, and reload after active tasks finish if requested.
+The exact host is **DSH 0.2.1-rc.3**. Paste the fixed package URL below into **Plugins → Add plugin**. Preserve profiles, configuration and conversations, and reload after active tasks finish if requested.
 
-| DSH | 当前公开安装包 / Current published package | SHA256SUMS |
+| DSH | 固定安装包 / Fixed package | SHA256SUMS |
 | --- | --- | --- |
-| 0.2.1-rc.3 | [DSH Theme 0.2.6-dsh.0.2.1-rc.3](https://github.com/gulagala001/dsh-theme-plugin/releases/download/v0.2.6-dsh.0.2.1-rc.3/gulagala001-dsh-theme-plugin-0.2.6-dsh.0.2.1-rc.3.tgz) | [SHA256SUMS](https://github.com/gulagala001/dsh-theme-plugin/releases/download/v0.2.6-dsh.0.2.1-rc.3/SHA256SUMS) |
+| 0.2.1-rc.3 | [DSH Theme 0.3.0-dsh.0.2.1-rc.3](https://github.com/gulagala001/dsh-theme-plugin/releases/download/v0.3.0-dsh.0.2.1-rc.3/gulagala001-dsh-theme-plugin-0.3.0-dsh.0.2.1-rc.3.tgz) | [SHA256SUMS](https://github.com/gulagala001/dsh-theme-plugin/releases/download/v0.3.0-dsh.0.2.1-rc.3/SHA256SUMS) |
 
 [安装指南 / Installation guide](https://github.com/gulagala001/dsh-theme-plugin/blob/main/docs/install.md)
 

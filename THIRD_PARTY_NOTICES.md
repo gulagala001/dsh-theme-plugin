@@ -21,4 +21,4 @@ Runtime libraries are used under their respective licenses: Acorn, acorn-walk, f
 
 ## Open Claude UI
 
-Claude Desktop adapts CDS tokens and component styling from [Caho1/open-claude-ui](https://github.com/Caho1/open-claude-ui/tree/c1f923ae0051a871941b98a0e2e3183a545e6a85), commit `c1f923ae0051a871941b98a0e2e3183a545e6a85`, under MIT, copyright (c) 2026 Caho1. See the [source record](vendor/appearance/src/client/skins/claude-desktop/source.json) and [complete license](vendor/licenses/Open-Claude-UI-MIT.txt). The theme uses native DSH interactions and system font fallbacks.
+Claude Desktop adapts CDS tokens, component styling, scroll masks, splitter gestures and image pan/zoom geometry from [Caho1/open-claude-ui](https://github.com/Caho1/open-claude-ui/tree/c1f923ae0051a871941b98a0e2e3183a545e6a85), commit `c1f923ae0051a871941b98a0e2e3183a545e6a85`, under MIT, copyright (c) 2026 Caho1. See the [source record](vendor/appearance/src/client/skins/claude-desktop/source.json) and [complete license](vendor/licenses/Open-Claude-UI-MIT.txt). The theme uses native DSH interactions and system font fallbacks.

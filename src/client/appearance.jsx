@@ -16,6 +16,8 @@ import codex from '../../vendor/appearance/src/client/skins/codex-desktop/layout
 import material from '../../vendor/appearance/src/client/skins/google-material-expressive/layout.css';
 import terminal from '../../vendor/appearance/src/client/skins/claude-cli-terminal/layout.css';
 import claude from '../../vendor/appearance/src/client/skins/claude-desktop/layout.css';
+import claudeScroll from '../../vendor/appearance/src/client/skins/claude-desktop/scroll.css';
+import { applyClaudeIntegration } from '../../vendor/appearance/src/client/skins/claude-desktop/integration.jsx';
 import glyph from '../../vendor/appearance/plugins/glyph-theme/src/theme/layout.css';
 export { Personalization } from '../../vendor/appearance/src/client/skins/personalization.jsx';
 export { AppearanceDrafts, useAppearanceDrafts } from '../../vendor/appearance/src/client/skins/advanced.jsx';
@@ -39,7 +41,7 @@ export function createAppearance(ctx) {
     }
   }
   const surfaces = createSurfaceMarkers();
-  const runtime = createSkinRuntime(ctx, adapter, { 'ios-liquid': ios, 'codex-desktop': codex, 'claude-desktop': claude, 'claude-cli-terminal': terminal, [MATERIAL_LAYOUT]: material, 'glyph-motion': glyph }, appearance, surfaces, base, PRODUCT);
+  const runtime = createSkinRuntime(ctx, adapter, { 'ios-liquid': ios, 'codex-desktop': codex, 'claude-desktop': claude + '\n' + claudeScroll, 'claude-cli-terminal': terminal, [MATERIAL_LAYOUT]: material, 'glyph-motion': glyph }, appearance, surfaces, base, PRODUCT);
   let observer;
   ctx.effect(() => () => { observer?.disconnect(); runtime.dispose(); surfaces.dispose(); });
   observer = new MutationObserver(() => surfaces.refresh());
@@ -47,6 +49,7 @@ export function createAppearance(ctx) {
   surfaces.refresh();
   applySidebarPresentation(ctx);
   applyCodexIntegration(ctx, () => runtime, { priority: -100 });
+  applyClaudeIntegration(ctx, () => runtime, { priority: -100 });
   applyMaterialIntegration(ctx, () => runtime, { priority: -100 });
   applySkinBrands(ctx, () => runtime, { priority: -100 });
   applyGlyphIntegration(ctx, () => runtime, { priority: -100 });

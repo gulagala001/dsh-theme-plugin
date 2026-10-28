@@ -51,7 +51,7 @@ https://github.com/gulagala001/dsh-theme-plugin/releases/download/v0.2.6-dsh.0.2
 | **主题管理** | 查看内置、已有、导入与市场主题；启用、导出、移除和更新。 |
 | **市场** | 多来源图片卡片、说明、作者、搜索、风格筛选、热门／最新排序与一键安装。 |
 
-内置 DSH 原生、Glyph 动态字符、Codex Desktop、iOS Liquid Glass、Claude CLI 与 Google Material，并提供 29 套配色。新装保留原生外观；识别到已有主题或可迁移偏好时承接当前选择。默认标题为 DeepSeek Harness，保留主题的字体、造型和动态效果。
+内置 DSH 原生、Glyph 动态字符、Codex Desktop、iOS Liquid Glass、Claude Desktop、Claude CLI 与 Google Material，并提供 30 套配色。新装保留原生外观；识别到已有主题或可迁移偏好时承接当前选择。默认标题为 DeepSeek Harness，保留主题的字体、造型和动态效果。
 
 ![主题市场](docs/images/market.png)
 

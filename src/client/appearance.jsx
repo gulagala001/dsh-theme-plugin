@@ -15,6 +15,7 @@ import ios from '../../vendor/appearance/src/client/skins/ios-liquid-glass/layou
 import codex from '../../vendor/appearance/src/client/skins/codex-desktop/layout.css';
 import material from '../../vendor/appearance/src/client/skins/google-material-expressive/layout.css';
 import terminal from '../../vendor/appearance/src/client/skins/claude-cli-terminal/layout.css';
+import claude from '../../vendor/appearance/src/client/skins/claude-desktop/layout.css';
 import glyph from '../../vendor/appearance/plugins/glyph-theme/src/theme/layout.css';
 export { Personalization } from '../../vendor/appearance/src/client/skins/personalization.jsx';
 export { AppearanceDrafts, useAppearanceDrafts } from '../../vendor/appearance/src/client/skins/advanced.jsx';
@@ -38,7 +39,7 @@ export function createAppearance(ctx) {
     }
   }
   const surfaces = createSurfaceMarkers();
-  const runtime = createSkinRuntime(ctx, adapter, { 'ios-liquid': ios, 'codex-desktop': codex, 'claude-cli-terminal': terminal, [MATERIAL_LAYOUT]: material, 'glyph-motion': glyph }, appearance, surfaces, base, PRODUCT);
+  const runtime = createSkinRuntime(ctx, adapter, { 'ios-liquid': ios, 'codex-desktop': codex, 'claude-desktop': claude, 'claude-cli-terminal': terminal, [MATERIAL_LAYOUT]: material, 'glyph-motion': glyph }, appearance, surfaces, base, PRODUCT);
   let observer;
   ctx.effect(() => () => { observer?.disconnect(); runtime.dispose(); surfaces.dispose(); });
   observer = new MutationObserver(() => surfaces.refresh());

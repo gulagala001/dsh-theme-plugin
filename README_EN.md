@@ -51,7 +51,7 @@ Open **Settings → Appearance → Market**, choose a theme and click **Install 
 | **Theme management** | Built-in, existing, imported and market themes; activation, export, removal and updates. |
 | **Market** | Multiple sources, image cards, descriptions, authors, search, style filters, popularity/date sorting and one-click installation. |
 
-Includes native DSH, Glyph, Codex Desktop, iOS Liquid Glass, Claude CLI and Google Material appearances, plus 29 palettes. A new installation keeps native appearance; existing themes and migratable preferences retain their selection. The default title is DeepSeek Harness while theme typography, shapes and motion remain intact.
+Includes native DSH, Glyph, Codex Desktop, iOS Liquid Glass, Claude Desktop, Claude CLI and Google Material appearances, plus 30 palettes. A new installation keeps native appearance; existing themes and migratable preferences retain their selection. The default title is DeepSeek Harness while theme typography, shapes and motion remain intact.
 
 ![Theme marketplace](docs/images/market.png)
 

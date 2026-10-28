@@ -1,5 +1,7 @@
 # 主题开发与宿主适配
 
+Claude Desktop 的固定上游、参考文件与视觉适配范围记录在 `vendor/appearance/src/client/skins/claude-desktop/source.json`，MIT 许可位于 `vendor/licenses/Open-Claude-UI-MIT.txt`；更新主题时同步中英文主题目录、配色数量及 `assets/builtin/` 的明暗预览。现有文档与打包检查核对分发路径；布局与交互在隔离宿主中核验。
+
 宿主构建以 `package.json` 的完整版本为准，当前源码默认 `0.2.1-rc.3`。每份构建对齐同版本 SDK、组件与依赖锁，安装入口按正式发行包的宿主版本选择。
 
 主题协议版本与 DSH 适配版本分开维护。现有受支持格式可以直接导入，无需改用本协议。新增主题可从最小模板开始：

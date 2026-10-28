@@ -9,6 +9,7 @@ export const BUILTINS = [
   { id: 'codex-desktop', name: 'Codex Desktop', description: '黑白强调、冷灰侧栏与悬浮工作台。', version: '1.0.1', image: 'theme-codex-light.jpg', darkImage: 'theme-codex-dark.jpg' },
   { id: 'ios-liquid-glass', name: 'iOS Liquid Glass', description: '圆角玻璃面板、分组设置与悬浮输入区。', version: '1.0.0', image: 'theme-glass-light.jpg', darkImage: 'theme-glass-dark.jpg' },
   { id: 'claude-cli-terminal', name: 'Claude CLI', description: '纸白与暖黑、陶土橙和等宽排版。', version: '1.0.0', image: 'theme-terminal-light.jpg', darkImage: 'theme-terminal-dark.jpg' },
+  { id: 'claude-desktop', name: 'Claude Desktop', description: '温润灰白与深色表面、陶土强调、衬线正文和圆角输入框。', version: '1.0.0', image: 'theme-claude-light.jpg', darkImage: 'theme-claude-dark.jpg' },
   { id: 'google-material-expressive', name: 'Google Material', description: 'Material 配色、导航、设置与本地字体。', version: '1.0.0', image: 'theme-material-light.jpg', darkImage: 'theme-material-dark.jpg' },
 ];
 export const text = value => typeof value === 'string' ? value : value && typeof value === 'object' ? value.zh || value.en || Object.values(value).find(v => typeof v === 'string') || '' : '';

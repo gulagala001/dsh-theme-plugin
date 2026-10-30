@@ -1,6 +1,6 @@
 {
   "name": "@gulagala001/dsh-theme-plugin",
-  "version": "0.3.0-dsh.0.2.1-rc.3",
+  "version": "0.3.1-dsh.0.2.1-rc.5",
   "description": "Themes, appearance customization and visual theme markets for DeepSeek Harness.",
   "type": "module",
   "author": "gulagala001",
@@ -32,7 +32,7 @@
   },
   "engines": {
     "node": ">=22.19",
-    "dsh": "0.2.1-rc.3"
+    "dsh": "0.2.1-rc.5"
   },
   "files": [
     "src",
@@ -76,7 +76,7 @@
   "devDependencies": {
     "react": "18.3.1",
     "react-dom": "18.3.1",
-    "@deepseek-ai/dsh": "0.2.1-rc.3",
+    "@deepseek-ai/dsh": "0.2.1-rc.5",
     "esbuild": "0.25.12"
   },
   "peerDependencies": {

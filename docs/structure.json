@@ -100,6 +100,11 @@
       "path": "docs/releases/v0.3.0-dsh.0.2.1-rc.3.md",
       "role": "release",
       "language": "bilingual"
+    },
+    {
+      "path": "docs/releases/v0.3.1-dsh.0.2.1-rc.5.md",
+      "role": "release",
+      "language": "bilingual"
     }
   ]
 }

@@ -2,7 +2,7 @@
 
 [English](install_EN.md)
 
-版本 **0.2.0** 对应 **DSH 0.2.1-rc.5**、Cordis **4.0.5**、Node.js **22.19+**。其他宿主版本尚未声明支持。安装到要使用的 profile，不会自动替换宿主版本。
+版本 **0.2.0** 对应 **DSH 0.2.1-rc.3**、Cordis **4.0.5**、Node.js **22.19+**。其他宿主版本尚未声明支持。安装到要使用的 profile，不会自动替换宿主版本。
 
 ## 添加插件
 
@@ -12,7 +12,7 @@
 4. 打开 **设置 → 外观**，使用外观设置、主题管理和市场三个页面。
 
 ```text
-https://github.com/gulagala001/dsh-theme-plugin/releases/download/v0.3.1-dsh.0.2.1-rc.5/gulagala001-dsh-theme-plugin-0.3.1-dsh.0.2.1-rc.5.tgz
+https://github.com/gulagala001/dsh-theme-plugin/releases/download/v0.3.0-dsh.0.2.1-rc.3/gulagala001-dsh-theme-plugin-0.3.0-dsh.0.2.1-rc.3.tgz
 ```
 
 安装标识是 `@gulagala001/dsh-theme-plugin`；不要从 npm 安装无作用域的同名包。当前不提供 npm 发布。
@@ -20,19 +20,19 @@ https://github.com/gulagala001/dsh-theme-plugin/releases/download/v0.3.1-dsh.0.2
 CLI 用户可在实际使用的 profile 安装。以下示例目标是 `web`；使用不同 profile 时替换该名称：
 
 ```sh
-dsh plugin --profile web add https://github.com/gulagala001/dsh-theme-plugin/releases/download/v0.3.1-dsh.0.2.1-rc.5/gulagala001-dsh-theme-plugin-0.3.1-dsh.0.2.1-rc.5.tgz
+dsh plugin --profile web add https://github.com/gulagala001/dsh-theme-plugin/releases/download/v0.3.0-dsh.0.2.1-rc.3/gulagala001-dsh-theme-plugin-0.3.0-dsh.0.2.1-rc.3.tgz
 ```
 
 ## 复制给 AI 安装
 
 ```text
-请先确认我当前要使用的 DSH 实例与 profile，以及宿主版本是否为 0.2.1-rc.5。
+请先确认我当前要使用的 DSH 实例与 profile，以及宿主版本是否为 0.2.1-rc.3。
 在该 profile 安装下面的固定发行包，包标识应为 @gulagala001/dsh-theme-plugin。
 保留已有配置、会话、主题原包和用户数据；不要安装无作用域 npm 同名包。
 不要自动升级 DSH。需要重启时先检查是否有任务运行，并说明要重启哪个实例。
 安装完成后确认设置 → 外观具有外观设置、主题管理、市场三个子页。
-安装包：https://github.com/gulagala001/dsh-theme-plugin/releases/download/v0.3.1-dsh.0.2.1-rc.5/gulagala001-dsh-theme-plugin-0.3.1-dsh.0.2.1-rc.5.tgz
-校验值：https://github.com/gulagala001/dsh-theme-plugin/releases/download/v0.3.1-dsh.0.2.1-rc.5/SHA256SUMS
+安装包：https://github.com/gulagala001/dsh-theme-plugin/releases/download/v0.3.0-dsh.0.2.1-rc.3/gulagala001-dsh-theme-plugin-0.3.0-dsh.0.2.1-rc.3.tgz
+校验值：https://github.com/gulagala001/dsh-theme-plugin/releases/download/v0.3.0-dsh.0.2.1-rc.3/SHA256SUMS
 ```
 
 ## 主题安装与恢复

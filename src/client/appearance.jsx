@@ -1,6 +1,6 @@
 import React, { useSyncExternalStore } from 'react';
 import { createSkinRuntime } from '../../vendor/appearance/src/client/skins/runtime.mjs';
-import { createSurfaceMarkers } from '../../vendor/appearance/src/client/skins/surfaces.mjs';
+import { observeSurfaces } from '../../vendor/appearance/src/client/skins/surfaces.mjs';
 import { applySidebarPresentation } from '../../vendor/appearance/src/client/sidebar.jsx';
 import { applyCodexIntegration } from '../../vendor/appearance/src/client/skins/codex-desktop/integration.jsx';
 import { applyMaterialIntegration, MATERIAL_LAYOUT } from '../../vendor/appearance/src/client/skins/google-material-expressive/integration.jsx';
@@ -40,13 +40,9 @@ export function createAppearance(ctx) {
       try { const saved = JSON.parse(inherited); if (saved && typeof saved === 'object' && !Array.isArray(saved)) localStorage.setItem(STORAGE_KEY, inherited); } catch {}
     }
   }
-  const surfaces = createSurfaceMarkers();
-  const runtime = createSkinRuntime(ctx, adapter, { 'ios-liquid': ios, 'codex-desktop': codex, 'claude-desktop': claude + '\n' + claudeScroll, 'claude-cli-terminal': terminal, [MATERIAL_LAYOUT]: material, 'glyph-motion': glyph }, appearance, surfaces, base, PRODUCT);
-  let observer;
-  ctx.effect(() => () => { observer?.disconnect(); runtime.dispose(); surfaces.dispose(); });
-  observer = new MutationObserver(() => surfaces.refresh());
-  observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-omd-surface'] });
-  surfaces.refresh();
+  ctx.effect(() => observeSurfaces());
+  const runtime = createSkinRuntime(ctx, adapter, { 'ios-liquid': ios, 'codex-desktop': codex, 'claude-desktop': claude + '\n' + claudeScroll, 'claude-cli-terminal': terminal, [MATERIAL_LAYOUT]: material, 'glyph-motion': glyph }, appearance, observeSurfaces, base, PRODUCT);
+  ctx.effect(() => () => runtime.dispose());
   applySidebarPresentation(ctx);
   applyCodexIntegration(ctx, () => runtime, { priority: -100 });
   applyClaudeIntegration(ctx, () => runtime, { priority: -100 });

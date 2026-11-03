@@ -33,8 +33,11 @@ export class ThemeConfigEntries {
         record.writing = record.writing.catch(() => {}).then(async () => {
           if (manager.entries.get(record.id) !== record || entry.fiber?.state !== 2) throw new ThemeError('theme-inactive', '主题已停用，设置未写入');
           const previous = structuredClone(entry.options.config || {}), next = change(previous, structuredClone(record.defaults));
-          const { resolveConfig } = await import(pathToFileURL(manager.host.resolve('@deepseek-ai/cordis')).href);
-          resolveConfig(entry.fiber.runtime, entry.fiber.ctx.waterfall(entry.fiber, 'internal/config', next, () => next));
+          if (typeof entry.fiber.resolveConfig === 'function') entry.fiber.resolveConfig(next);
+          else {
+            const { resolveConfig } = await import(pathToFileURL(manager.host.resolve('@deepseek-ai/cordis')).href);
+            resolveConfig(entry.fiber.runtime, entry.fiber.ctx.waterfall(entry.fiber, 'internal/config', next, () => next));
+          }
           try {
             await entry.update({ config: next }); await entry.fiber.await();
             if (entry.fiber._error) throw entry.fiber._error;
@@ -62,7 +65,7 @@ export class ThemeConfigEntries {
     const entry = new Entry(loader);
     // A managed row has its own data file; it is never written into the user's
     // startup profile or inserted into the root Loader tree.
-    entry.parent = { ctx: scope, tree: { ctx: scope, write() {}, import: async () => plugin } };
+    entry.parent = { ctx: scope, tree: { ctx: scope, store: { [id]: entry }, commit() {}, write() {}, import: async () => plugin } };
     entry.options = { id, name: theme.packageName, inject: ['loader'], config: saved };
     // Preserve the context initialized by Entry: Loader installs independent
     // isolation/interception maps there for later native config updates.

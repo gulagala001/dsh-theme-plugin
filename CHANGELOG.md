@@ -1,3 +1,19 @@
+## 未发布 · 宿主接口兼容
+
+[中文](#host-compat-zh) | [English](#host-compat-en)
+
+<a id="host-compat-zh"></a>
+
+### 中文
+
+- 主题设置复用原生配置校验，保留旧宿主行为及其他设置条目的所有权。
+
+<a id="host-compat-en"></a>
+
+### English
+
+- Use native theme configuration validation while preserving earlier hosts and unrelated settings entries.
+
 # DSH Theme 0.3.1 · DSH 0.2.1-rc.5
 
 [中文](#zh-031) | [English](#en-031)

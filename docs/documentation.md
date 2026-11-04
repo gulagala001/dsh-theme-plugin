@@ -54,6 +54,7 @@ Roles: home · index · guide · development · sources · release · redirect. 
 | [docs/releases/v0.2.6-dsh.0.2.1-rc.3.md](releases/v0.2.6-dsh.0.2.1-rc.3.md) | release | bilingual | — |
 | [docs/releases/v0.3.0-dsh.0.2.1-rc.3.md](releases/v0.3.0-dsh.0.2.1-rc.3.md) | release | bilingual | — |
 | [docs/releases/v0.3.1-dsh.0.2.1-rc.5.md](releases/v0.3.1-dsh.0.2.1-rc.5.md) | release | bilingual | — |
+| [docs/releases/v0.3.2-dsh.0.2.2-rc.1.md](releases/v0.3.2-dsh.0.2.2-rc.1.md) | release | bilingual | — |
 | [README_EN.md](../README_EN.md) | home | zh | — |
 | [README.md](../README.md) | home | zh | — |
 | [THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md) | sources | en | — |

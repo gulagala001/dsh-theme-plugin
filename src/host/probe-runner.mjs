@@ -25,7 +25,8 @@ process.once('SIGTERM', () => { void cleanup().finally(() => process.exit(1)); }
 try {
   const home = join(folder, 'home'), profile = join(home, 'profiles', 'theme-probe');
   const req = createRequire(cli);
-  const { initProfile, PROFILE_TEMPLATES } = await import(pathToFileURL(req.resolve('@deepseek-ai/dsh-app-boot')).href);
+  const { initProfile } = await import(pathToFileURL(req.resolve('@deepseek-ai/dsh-app-boot')).href);
+    const { PROFILE_TEMPLATES } = await import(pathToFileURL(req.resolve('@deepseek-ai/dsh-official-bundles')).href);
   await mkdir(join(profile, 'node_modules'), { recursive: true });
   const { name: packageName } = JSON.parse(await readFile(join(plugin, 'package.json'), 'utf8'));
   initProfile(profile, [...PROFILE_TEMPLATES.web.bundles, packageName]);

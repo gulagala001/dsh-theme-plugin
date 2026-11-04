@@ -32,10 +32,10 @@ Compatibility targets the supported DSH version, without restoring obsolete them
 Open **Plugins → Add plugin** in the DSH instance you use, then paste:
 
 ```text
-https://github.com/gulagala001/dsh-theme-plugin/releases/download/v0.3.2-dsh.0.2.2-rc.1/gulagala001-dsh-theme-plugin-0.3.2-dsh.0.2.2-rc.1.tgz
+https://github.com/gulagala001/dsh-theme-plugin/releases/download/v0.3.3-dsh.0.2.2-rc.1/gulagala001-dsh-theme-plugin-0.3.3-dsh.0.2.2-rc.1.tgz
 ```
 
-Wait for active tasks to finish, then follow the host’s activation/restart prompt. Keep your existing profile and data. See the [installation guide](docs/install_EN.md) · [SHA256SUMS](https://github.com/gulagala001/dsh-theme-plugin/releases/download/v0.3.2-dsh.0.2.2-rc.1/SHA256SUMS).
+Wait for active tasks to finish, then follow the host’s activation/restart prompt. Keep your existing profile and data. See the [installation guide](docs/install_EN.md) · [SHA256SUMS](https://github.com/gulagala001/dsh-theme-plugin/releases/download/v0.3.3-dsh.0.2.2-rc.1/SHA256SUMS).
 
 ### 2. Try this first
 

@@ -9,7 +9,7 @@
 <p align="center">
   <a href="https://github.com/gulagala001/dsh-theme-plugin/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/gulagala001/dsh-theme-plugin?style=flat-square"></a>
   <a href="https://github.com/gulagala001/dsh-theme-plugin/releases"><img alt="GitHub total downloads" src="https://img.shields.io/github/downloads/gulagala001/dsh-theme-plugin/total?style=flat-square&amp;label=GitHub%20downloads&amp;color=0969da"></a>
-  <a href="#readme-install"><img alt="DSH 0.2.1-rc.5" src="https://img.shields.io/badge/DSH-0.2.2--rc.1-0969da?style=flat-square"></a>
+  <a href="#readme-install"><img alt="DSH 0.2.2-rc.1" src="https://img.shields.io/badge/DSH-0.2.2--rc.1-0969da?style=flat-square"></a>
   <a href="https://github.com/gulagala001/dsh-theme-plugin/stargazers"><img alt="GitHub Stars" src="https://img.shields.io/github/stars/gulagala001/dsh-theme-plugin?style=flat-square&amp;color=0969da"></a>
 </p>
 

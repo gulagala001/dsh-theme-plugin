@@ -1,7 +1,7 @@
 {
   "name": "@gulagala001/dsh-theme-plugin",
   "version": "0.3.3-dsh.0.2.2-rc.1",
-  "description": "Themes, appearance customization and visual theme markets for DeepSeek Harness.",
+  "description": "Themes and appearance for DeepSeek Harness: one-click installs from theme markets, automatic recovery and AI repair guides.",
   "type": "module",
   "author": "gulagala001",
   "repository": {

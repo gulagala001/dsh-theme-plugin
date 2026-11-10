@@ -1,21 +1,21 @@
 <a id="readme-top"></a>
 
-<h1 align="center">dsh-theme-plugin</h1>
+<h1 align="center">DSH Theme</h1>
 
-<p align="center"><strong>Discover, check, install and manage community themes.</strong><br>DeepSeek Harness plugin</p>
+<p align="center"><strong>Browse community themes in DSH and install them in one click, after a test run that checks they work.</strong><br>A DeepSeek Harness plugin</p>
 
 <p align="center"><a href="README.md">简体中文</a> · <strong>English</strong></p>
 
 <p align="center">
-  <a href="https://github.com/gulagala001/dsh-theme-plugin/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/gulagala001/dsh-theme-plugin?style=flat-square"></a>
-  <a href="https://github.com/gulagala001/dsh-theme-plugin/releases"><img alt="GitHub total downloads" src="https://img.shields.io/github/downloads/gulagala001/dsh-theme-plugin/total?style=flat-square&amp;label=GitHub%20downloads&amp;color=0969da"></a>
+  <a href="https://github.com/gulagala001/dsh-theme-plugin/releases/tag/v0.3.3-dsh.0.2.2-rc.1"><img alt="DSH Theme 0.3.3" src="https://img.shields.io/badge/release-0.3.3-0969da?style=flat-square"></a>
+  <a href="https://github.com/gulagala001/dsh-theme-plugin/releases"><img alt="GitHub downloads" src="https://img.shields.io/github/downloads/gulagala001/dsh-theme-plugin/total?style=flat-square&amp;label=GitHub%20downloads&amp;color=0969da"></a>
   <a href="#readme-install"><img alt="DSH 0.2.2-rc.1" src="https://img.shields.io/badge/DSH-0.2.2--rc.1-0969da?style=flat-square"></a>
   <a href="https://github.com/gulagala001/dsh-theme-plugin/stargazers"><img alt="GitHub Stars" src="https://img.shields.io/github/stars/gulagala001/dsh-theme-plugin?style=flat-square&amp;color=0969da"></a>
 </p>
 
-<p align="center"><a href="#readme-install"><strong>Get started</strong></a> · <a href="docs/compatibility_EN.md">Docs</a> · <a href="https://github.com/gulagala001/dsh-theme-plugin/issues">Report an issue</a></p>
+<p align="center"><a href="#readme-install"><strong>Get started</strong></a> · <a href="docs/compatibility_EN.md">Supported themes</a> · <a href="https://github.com/gulagala001/dsh-theme-plugin/issues">Feedback</a></p>
 
-<p align="center"><a href="docs/images/theme-hero-en.png"><img src="docs/images/theme-hero-en.png" alt="dsh-theme-plugin · Discover, install, manage" width="880"></a></p>
+<p align="center"><a href="docs/images/theme-hero-en.png"><img src="docs/images/theme-hero-en.png" alt="DSH Theme: discover, install, manage" width="880"></a></p>
 
 <p align="center"><a href="docs/images/glyph-animation.gif"><img src="docs/images/glyph-animation.gif" alt="Glyph animated character whale and interface interactions" width="600" height="438"></a></p>
 
@@ -23,92 +23,75 @@
 
 ## Quick start
 
-**Required environment：** DSH **0.2.2-rc.1**, Node.js **24.9.0+**.
-
-Compatibility targets the supported DSH version, without restoring obsolete theme APIs. Dynamic themes run in a disposable DSH profile and browser before installation. Themes are third-party plugins whose backends use real host services; preflight is not a security sandbox.
+**Requires:** DSH **0.2.2-rc.1** and Node.js **24.9.0+**.
 
 ### 1. Install
 
-Open **Plugins → Add plugin** in the DSH instance you use, then paste:
+In DSH, open **Plugins → Add plugin** and paste:
 
 ```text
 https://github.com/gulagala001/dsh-theme-plugin/releases/download/v0.3.3-dsh.0.2.2-rc.1/gulagala001-dsh-theme-plugin-0.3.3-dsh.0.2.2-rc.1.tgz
 ```
 
-Wait for active tasks to finish, then follow the host’s activation/restart prompt. Keep your existing profile and data. See the [installation guide](docs/install_EN.md) · [SHA256SUMS](https://github.com/gulagala001/dsh-theme-plugin/releases/download/v0.3.3-dsh.0.2.2-rc.1/SHA256SUMS).
+When your current task finishes, enable the plugin or restart DSH when prompted. Your settings and conversations stay as they were. For command-line installs, upgrades and removal, see the [installation guide](docs/install_EN.md). Checksums: [SHA256SUMS](https://github.com/gulagala001/dsh-theme-plugin/releases/download/v0.3.3-dsh.0.2.2-rc.1/SHA256SUMS).
 
-### 2. Try this first
+### 2. Try it
 
-Open **Settings → Appearance → Market**, choose a theme and click **Install and apply**.
+Open **Settings → Appearance → Market**, pick a theme and click **Install and apply**.
 
-**Success looks like：** After pre-install checks pass, the appearance changes and the theme appears in management. A failed check preserves your current appearance and explains the cause.
+If the check passes, the appearance switches and the theme shows up in **Theme management**. If it fails, your appearance stays as it was and you see why.
 
-## Three pages for the whole appearance
+## Three pages
 
-| Page | What it manages |
+| Page | What you can do |
 | --- | --- |
-| **Appearance settings** | Light/dark, palettes, backgrounds, fonts, sizes, corners, transparency, motion, branding and supported theme-specific settings. |
-| **Theme management** | Built-in, existing, imported and market themes; activation, export, removal and updates. |
-| **Market** | Multiple sources, image cards, descriptions, authors, search, style filters, popularity/date sorting and one-click installation. |
+| **Appearance settings** | Light and dark, colors, background, fonts, sizes, corner radius, transparency, motion, logo and title, plus settings a theme brings along |
+| **Theme management** | See built-in, installed, imported and market themes; enable, export, remove and update them |
+| **Market** | Several theme markets in one place, with previews, descriptions and authors; search, filter by style, sort by popular or newest |
 
-Includes native DSH, Glyph, Codex Desktop, iOS Liquid Glass, Claude Desktop, Claude CLI and Google Material appearances, plus 30 palettes. A new installation keeps native appearance; existing themes and migratable preferences retain their selection. The default title is DeepSeek Harness while theme typography, shapes and motion remain intact.
+Built in are DSH native, Glyph animated characters, Codex Desktop, iOS Liquid Glass, Claude Desktop, Claude CLI and Google Material, plus 30 color schemes. A fresh install keeps DSH looking as it did; if you used another theme before, your choice carries over.
 
-![Theme marketplace](docs/images/market.png)
+![Theme market](docs/images/market.png)
 
-### Bring existing themes into management
+### Themes you already have
 
-Already-installed plugins remain under DSH’s native manager. The theme manager coordinates activation rather than loading a second copy. Import recognized `.json`, `.zip` and `.tgz` formats. Downloads and adaptation preserve upstream originals.
+Theme plugins you installed through DSH show up in Theme management automatically and are switched on and off from there, so two copies never run at once. You can also import theme files in `.json`, `.zip` and `.tgz` formats.
 
 ![Theme management](docs/images/theme-management.png)
 
-### Check the version and runtime before installation
+### A test run before installing
 
-A stale market snapshot is checked for a newer release with matching package and author/repository identity, then pinned to an actual source. Source-only themes can have their clients prepared automatically. Backends use current DSH services with disposable lifecycles. Preflight checks loading, actual input and settings access, light/dark, disposal and remounting. Failure preserves the current usable appearance.
+Dynamic themes (ones with scripts or a backend) first run in a separate DSH and browser before they reach yours: the page loads, text is typed, settings open, light and dark switch, and the theme is unloaded and loaded again. If anything breaks, the theme is not installed and your current appearance stays. Older market entries are first checked for a newer version from the same author.
 
-Declared compatibility and runtime results are shown separately. Unchecked catalog entries are not labeled compatible; obsolete host APIs are not forced into the current host. [Supported scope](docs/compatibility_EN.md)
+This catches common startup and display problems, but it is not a security sandbox: a theme is a plugin and can run code. Only install themes from authors you trust. Details are in [supported themes](docs/compatibility_EN.md).
 
 ## FAQ
 
 <details>
-<summary>Why does installation take a while?</summary>
+<summary>Why does installing take a moment?</summary>
 
-Dynamic themes are staged and tested in a matching disposable DSH profile and browser. If Chromium/Chrome/Edge is unavailable, fixed browser resources are prepared first. Failed checks are never skipped to complete installation.
-
-</details>
-
-<details>
-<summary>What happens with a stale or incompatible theme?</summary>
-
-The manager first checks for an eligible newer version from the same source. If it still fails, the exact version and reason are shown with a copyable AI repair task. Reimported repairs must pass the same checks; users do not need to write adapter code. [AI repair guide](docs/ai-repair.md)
+Dynamic themes get a test run in a separate DSH and browser first. If you have no Chrome, Edge or Chromium, a browser is downloaded the first time, which takes longer.
 
 </details>
 
 <details>
-<summary>What happens after a DSH upgrade?</summary>
+<summary>What if a theme will not install?</summary>
 
-Only adapted host versions are claimed. A host or adapter change triggers rechecking of affected themes; original packages and settings remain available, with a usable appearance restored until checks pass. Future host support is not inferred by widening a version range.
+Read the reason in the message. Click **Copy for AI repair** (复制给 AI 修复), send it to an AI, and it will produce a working theme package. Import it from **Theme management → Import theme**; you do not need to write code. See the [AI repair guide](docs/ai-repair.md).
+
+</details>
+
+<details>
+<summary>Will themes keep working after I upgrade DSH?</summary>
+
+The plugin only lists DSH versions it has been adapted to. After a DSH upgrade, affected themes are checked again. Theme files and settings are kept, and a working appearance is used until a theme passes.
 
 </details>
 
 ## Data, development and license
 
-The theme library lives under `DSH_HOME/dsh-theme-plugin/`, separated by profile. Appearance preferences and custom backgrounds also use browser storage. Native theme backends keep their original data locations. Market browsing requests public catalogs; installation uses GitHub/npm/theme resources. The manager itself needs no model key and does not upload conversations to markets.
+The theme library lives in `DSH_HOME/dsh-theme-plugin/`, one per profile; appearance preferences and custom backgrounds are also stored in the browser. Browsing the market reads public catalogs, and installing downloads from GitHub, npm or the theme's own address. Managing themes needs no model key and never uploads your conversations.
 
-Preflight detects common startup failures; it does not prove arbitrary third-party code, every device or delayed behavior safe. A theme’s own implementation controls its capabilities and permissions.
+[Development and build](docs/development.md). Code is [MIT](LICENSE) licensed; fonts, components and other sources are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md), and third-party theme assets keep their own licenses.
 
-[Optional development protocol and build guide](docs/development.md). Code uses [MIT](LICENSE); fonts, components and other sources are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Third-party theme assets retain their original terms.
-
-## Documentation and support
-
-| I want to | Where to go |
-| --- | --- |
-| Install, update or remove | [Installation guide](docs/install_EN.md) |
-| Learn the features and limits | [Documentation](docs/compatibility_EN.md) |
-| Read release changes | [Releases](https://github.com/gulagala001/dsh-theme-plugin/releases) |
-| Report a problem | [Issues](https://github.com/gulagala001/dsh-theme-plugin/issues) |
-
-For a bug report, include the full DSH and plugin versions, the entry point, minimal reproduction steps, and expected versus actual behavior. Remove private data before sharing logs or screenshots.
-
-<p align="center"><a href="#readme-top">Back to top</a> · <a href="https://github.com/gulagala001/dsh-theme-plugin/releases">Versions and downloads</a> · <a href="https://github.com/gulagala001/dsh-theme-plugin/issues">Feedback</a></p>
-
-[Documentation structure and contributing](docs/documentation.md)
+When reporting a problem, include your DSH and plugin versions, the theme name, the steps, and what you expected versus what happened. Remove personal data from logs and screenshots first: [Issues](https://github.com/gulagala001/dsh-theme-plugin/issues).

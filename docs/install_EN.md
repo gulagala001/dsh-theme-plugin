@@ -1,48 +1,51 @@
-# Install dsh-theme-plugin
+# Install DSH Theme
 
-[简体中文](install.md)
+[简体中文](install.md) · [Back to README](../README_EN.md)
 
-Version **0.2.0** targets **DSH 0.2.2-rc.1**, **Cordis 4.0.5** and **Node.js 22.19+**. Other host versions are not declared supported. Install into the profile you actually use; this plugin does not upgrade the host.
+Requires DSH **0.2.2-rc.1** and Node.js **24.9.0+**.
 
-## Add the plugin
+## Install in DSH
 
-1. Open **Plugins → Add Plugin** in the target DSH instance.
-2. Paste the fixed URL below and confirm installation.
-3. Enable it as directed by DSH. Finish active tasks before any requested restart.
-4. Open **Settings → Appearance** for Appearance settings, Theme management and Market.
+Open **Plugins → Add plugin** and paste:
 
 ```text
 https://github.com/gulagala001/dsh-theme-plugin/releases/download/v0.3.3-dsh.0.2.2-rc.1/gulagala001-dsh-theme-plugin-0.3.3-dsh.0.2.2-rc.1.tgz
 ```
 
-The identifier is `@gulagala001/dsh-theme-plugin`. This release is not published to npm; do not install the unrelated unscoped package.
+When your current task finishes, enable the plugin or restart DSH when prompted. Checksums: [SHA256SUMS](https://github.com/gulagala001/dsh-theme-plugin/releases/download/v0.3.3-dsh.0.2.2-rc.1/SHA256SUMS).
 
-CLI example for the `web` profile; replace it with your actual profile name:
+## Install from the command line
 
-```sh
-dsh plugin --profile web add https://github.com/gulagala001/dsh-theme-plugin/releases/download/v0.3.3-dsh.0.2.2-rc.1/gulagala001-dsh-theme-plugin-0.3.3-dsh.0.2.2-rc.1.tgz
+Use the CLI that belongs to the same DSH, replacing `web` with your profile (`desktop` for the desktop app):
+
+```bash
+dsh plugin --profile web add "https://github.com/gulagala001/dsh-theme-plugin/releases/download/v0.3.3-dsh.0.2.2-rc.1/gulagala001-dsh-theme-plugin-0.3.3-dsh.0.2.2-rc.1.tgz"
 ```
 
-## AI-assisted installation
+## Ask the AI to install it
+
+You can also send this to the AI in DSH and let it do the install:
 
 ```text
-Identify my target DSH instance and profile, and confirm that its host version is 0.2.1-rc.3.
-Install the fixed release below into that profile. The package identifier must be @gulagala001/dsh-theme-plugin.
-Preserve configuration, conversations, original theme packages and user data. Do not install the unrelated unscoped npm package.
-Do not upgrade DSH automatically. Before any required restart, check for active work and identify the instance to restart.
-Confirm that Settings → Appearance contains Appearance settings, Theme management and Market.
-Archive: https://github.com/gulagala001/dsh-theme-plugin/releases/download/v0.3.3-dsh.0.2.2-rc.1/gulagala001-dsh-theme-plugin-0.3.3-dsh.0.2.2-rc.1.tgz
-Checksums: https://github.com/gulagala001/dsh-theme-plugin/releases/download/v0.3.3-dsh.0.2.2-rc.1/SHA256SUMS
+Install DSH Theme into the DSH profile I am using now:
+https://github.com/gulagala001/dsh-theme-plugin/releases/download/v0.3.3-dsh.0.2.2-rc.1/gulagala001-dsh-theme-plugin-0.3.3-dsh.0.2.2-rc.1.tgz
+First check that DSH is 0.2.2-rc.1 and Node.js is 24.9.0 or later. The package must be @gulagala001/dsh-theme-plugin; do not install the unscoped package with the same name from npm.
+Keep my settings, conversations and theme files, and do not upgrade DSH. Before restarting, make sure no task is running.
+Afterwards, confirm that Settings → Appearance has the Appearance settings, Theme management and Market pages.
 ```
 
-## Themes, updates and removal
+## Upgrade and roll back
 
-Choose **Install and apply** in the market. Failed checks preserve the current appearance and offer an AI repair task. Reimport the repaired package in Theme management. Dynamic preflight may download Chromium on first use; an unavailable check environment leaves the theme uninstalled with an explanation.
+Back up your profile and `DSH_HOME/dsh-theme-plugin/`, then install the new package over the old one. DSH itself does not need to change. If the upgrade fails, your data is untouched; send the first error to [Issues](https://github.com/gulagala001/dsh-theme-plugin/issues).
 
-Use a newer fixed release archive to update, retaining the profile and data. Remove through DSH's plugin manager, or run this for the matching profile:
+To go back, install the previous package. Rolling back only replaces the code; data written by the newer version stays.
 
-```sh
+## Uninstall
+
+Remove it on the Plugins page, or run:
+
+```bash
 dsh plugin --profile web remove @gulagala001/dsh-theme-plugin
 ```
 
-Removal does not deliberately delete the theme library or browser preferences. See [compatibility](compatibility_EN.md) for formats and service-dependent themes.
+Then restart DSH. The theme library and the appearance preferences stored in the browser stay; delete them by hand if you no longer need them.

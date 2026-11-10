@@ -4,8 +4,6 @@ Claude Desktop 的固定上游、参考文件与视觉适配范围记录在 `ven
 
 Claude Desktop 的滚动渐隐沿用原生滚动时间线；分栏与单图预览通过当前宿主组件和实际状态做薄适配。新增监听、观察器、指针捕获、属性、图片变换和窄屏焦点约束均随外观所有权释放。更新此适配时核对 `source.json` 的固定参考指纹与保留边界，并验证主题切换、拖动取消、上传状态、图片缩放和减少动态；不以固定 Claude 模型／权限／账号示例替换宿主能力。
 
-宿主构建以 `package.json` 的完整版本为准，当前源码默认 `0.2.2-rc.1`。每份构建对齐同版本 SDK、组件与依赖锁，安装入口按正式发行包的宿主版本选择。
-
 主题协议版本与 DSH 适配版本分开维护。现有受支持格式可以直接导入，无需改用本协议。新增主题可从最小模板开始：
 
 ```sh
@@ -71,4 +69,4 @@ Skin Center hooks v1alpha1 与 Deep Whale customization v1/v2 沿用上游接口
 
 首页截图与 GIF 动图放在 `docs/images/`，中英文首页同步，显示尺寸不超过素材原宽；来源、尺寸与哈希记录在 `docs/images/readme-screenshots.json`。更新素材后运行 `npm run docs:check`，公开文件与安装包检查由 `scripts/check-package.mjs` 执行。
 
-每版（含补丁版）新增 `docs/releases/v<完整版本>.md`（当前示例：`docs/releases/v0.3.3-dsh.0.2.2-rc.1.md`） 并登记 `docs/structure.json`；`CHANGELOG.md` 同步当前完整双语正文，历史页面保留。当前导航与固定安装入口同步新版，tag 与 Release 使用相同的分类、正文和精确宿主安装表。
+发版只在 `CHANGELOG.md` 顶部写当前版本的双语条目，不再单独建发行页。Release 正文用 `node scripts/check-docs.mjs --release-notes` 从 CHANGELOG 生成；README 和安装指南里的固定安装地址同步换成新版。

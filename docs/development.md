@@ -70,3 +70,5 @@ Skin Center hooks v1alpha1 与 Deep Whale customization v1/v2 沿用上游接口
 首页截图与 GIF 动图放在 `docs/images/`，中英文首页同步，显示尺寸不超过素材原宽；来源、尺寸与哈希记录在 `docs/images/readme-screenshots.json`。更新素材后运行 `npm run docs:check`，公开文件与安装包检查由 `scripts/check-package.mjs` 执行。
 
 发版只在 `CHANGELOG.md` 顶部写当前版本的双语条目，不再单独建发行页。Release 正文用 `node scripts/check-docs.mjs --release-notes` 从 CHANGELOG 生成；README 和安装指南里的固定安装地址同步换成新版。
+
+从源码构建前运行 `node scripts/prepare-host-sdk.mjs`，再运行 `pnpm install --frozen-lockfile` 和 `pnpm run build`。

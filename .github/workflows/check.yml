@@ -14,6 +14,7 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
+      - run: node scripts/prepare-host-sdk.mjs
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - run: pnpm build
       - run: pnpm test

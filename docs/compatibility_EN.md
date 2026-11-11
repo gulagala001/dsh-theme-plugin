@@ -2,7 +2,7 @@
 
 [简体中文](compatibility.md) · [Back to README](../README_EN.md)
 
-This release targets **DSH 0.2.2-rc.1**, and themes are checked against that version. Older market entries are first matched to a newer version from the same package and repository; interfaces that DSH has removed are not added back for old themes.
+This release targets **DSH 0.2.2-rc.2**, and themes are checked against that version. Older market entries are first matched to a newer version from the same package and repository; interfaces that DSH has removed are not added back for old themes.
 
 ## Handled automatically on install
 

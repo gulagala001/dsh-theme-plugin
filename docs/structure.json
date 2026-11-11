@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "published": "0.3.3-dsh.0.2.2-rc.1",
+  "published": "0.3.4-dsh.0.2.2-rc.2",
   "repository": {
     "slug": "gulagala001/dsh-theme-plugin",
     "description": "DSH 主题和外观管理：从主题市场一键安装，出问题自动恢复，另附 AI 修复说明。 Themes and appearance for DeepSeek Harness: one-click installs from theme markets, automatic recovery and AI repair guides.",

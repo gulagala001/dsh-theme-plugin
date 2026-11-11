@@ -25,6 +25,7 @@ export function ThemeSettings({ client, appearance, customization }) {
     {state.busy && <div role="status" className="dtp-notice"><span className="dtp-spinner"/>{state.busy.label}…</div>}
     {state.reloadPending && <div role="status" className="dtp-notice">主题已启用；草稿发送或清空后会自动刷新，完成页面更新。</div>}
     {state.recovery && <div role="status" className="dtp-notice">{state.recovery.message}</div>}
+    {state.pending?.rollbackError && <div role="alert">当前后台：{state.backend || '无已确认运行的托管后台'} <Button onClick={() => act(() => client.retryRollback())}>重试回滚</Button></div>}
     {state.error && <div role="alert" className="dtp-error"><strong>暂时无法完成</strong><p>{state.error.message}</p><div className="dtp-actions">
       {state.error.repair && <Button size="sm" variant="outline" onClick={() => copy(state.error.repair)}>复制给 AI 修复</Button>}
       <Button size="sm" variant="ghost" onClick={() => client.dismiss()}>关闭</Button></div>

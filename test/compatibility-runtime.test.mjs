@@ -107,3 +107,18 @@ export function apply(ctx){
   } finally { await backends.dispose(); }
   assert.equal(routes.size, 0);
 }));
+
+test('failed backend teardown stays owned until a retried disposition succeeds',async () => {
+  const {NativeThemeBackends}=await import('../src/host/native-backend.mjs');
+  const runtime=Object.create(NativeThemeBackends.prototype);
+  Object.assign(runtime,{running:new Map(),pending:Promise.resolve(),configs:{dispose(){}}});
+  const calls=[]; let failed=false;
+  runtime.launch=async theme=>{calls.push('start '+theme.id);return {dispose:async()=>{
+    calls.push('dispose '+theme.id);if(!failed){failed=true;throw Error('transient teardown');}
+  }};};
+  const a={id:'old',digest:'x',backend:{}},b={id:'new',digest:'x',backend:{}};
+  await runtime.start(a);await assert.rejects(runtime.start(b),/teardown/);
+  assert.equal(runtime.active.key,'old/x');assert.equal(runtime.running.size,1);
+  await runtime.start(b);await runtime.dispose();
+  assert.deepEqual(calls,['start old','dispose old','dispose old','start new','dispose new']);
+});

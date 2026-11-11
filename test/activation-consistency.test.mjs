@@ -139,8 +139,10 @@ test('failed runtime recovery keeps an expired receipt until restoration actuall
   await assert.rejects(engine.fail(candidate.token, 'client failed'), /backend unavailable/);
   assert.equal(engine.library.state.pending?.token, candidate.token);
   assert.equal(engine.library.state.pending.deadline, 0);
-  await assert.rejects(engine.commit(candidate.token), /backend unavailable/);
+  assert.equal((await engine.state()).pending.rollbackError, 'backend unavailable');
+  await assert.rejects(engine.commit(candidate.token), { code: 'activation-expired' });
   engine.backends.start = start;
+  await engine.fail(candidate.token, 'retry rollback');
   await assert.rejects(engine.commit(candidate.token), { code: 'activation-expired' });
   assert.equal(engine.library.state.pending, null);
   assert.equal(runtime.active, 'first/v1');
@@ -264,4 +266,23 @@ test('disposing the client prevents late activation receipts from changing or co
   assert.equal(signal?.aborted, true);
   assert.equal(selected(), 'default');
   assert.deepEqual(actions, ['activate']);
+});
+
+test('host deadline retires unconfirmed preview without another API call', async t => {
+  const {engine,runtime} = await fixture(t);
+  t.mock.timers.enable({apis:['setTimeout','Date'],now:Date.now()});
+  const old = await engine.activate('second'); t.mock.timers.tick(30001);
+  await engine.activation;
+  assert.equal(engine.library.state.pending,null); assert.equal(runtime.active,'first/v1');
+  const next = await engine.activate('second'); await engine.commit(next.token);
+  await assert.rejects(engine.commit(old.token),{code:'activation-expired'});
+  t.mock.timers.tick(30001); await new Promise(setImmediate);
+  assert.equal(runtime.active,'second/v1');
+});
+test('host recheck failure ends the upgrade notice and retains the reason', async t => {
+  const {engine} = await fixture(t);
+  await engine.library.mutate(s=>{s.themes.find(t=>t.id==='first').report.adapterVersion=-1;});
+  await engine.prepareRevalidation(); await engine.revalidation;
+  const state=await engine.state();assert.equal(state.revalidating,false);assert.equal(state.upgrade,null);
+  assert.match(state.recovery.message,/重检失败/);assert.equal(state.themes.length,2);
 });

@@ -58,7 +58,10 @@ export class ThemeEngine {
     this.controller.signal.throwIfAborted();
     await this.transition(async () => {
       const pending = this.library.state.pending;
-      if (pending) await this.restoreActivation(pending.token, '上次主题启用未完成，已恢复之前的选择。', { cold: true });
+      if (pending) {
+        try { await this.restoreActivation(pending.token, '上次主题启用未完成，已恢复之前的选择。', { cold: true }); }
+        catch (error) { if (!this.library.state.pending?.rollbackError) throw error; }
+      }
     });
     this.controller.signal.throwIfAborted();
     await this.discover({ local: false }).catch(e => { this.discoveryError = e.message; });
@@ -92,6 +95,12 @@ export class ThemeEngine {
           }));
         } catch (e) {
           if (this.controller.signal.aborted) break;
+          await this.transition(() => this.library.mutate(s => {
+            if (s.upgrade?.id === old.id) {
+              s.upgrade = null;
+              s.recovery = { id:old.id, at:Date.now(), message:'兼容性重检失败，请重新导入主题：' + e.message };
+            }
+          }));
           await this.transition(() => this.library.issue({ id: old.id, name: old.name, at: Date.now(), message: e.message, code: e.code || 'host-recheck',
             repair: repairTask({ theme: old, error: e, report: e.details || {} }) }));
         }
@@ -101,7 +110,9 @@ export class ThemeEngine {
   async state() {
     await this.initialization;
     return this.transition(async () => {
-      await this.expireActivation();
+      if (!this.library.state.pending?.rollbackError) {
+        try { await this.expireActivation(); } catch (error) { if (!this.library.state.pending?.rollbackError) throw error; }
+      }
       let state = await this.library.snapshot();
       // The pending receipt owns the runtime until the client confirms or
       // recovery finishes. Reading the library must not remount its predecessor.
@@ -122,7 +133,7 @@ export class ThemeEngine {
     });
   }
   describe(state) {
-    return { ...state, themes: state.themes.map(publicTheme), activeTheme: publicTheme(this.theme(state.active, state.activeDigest)), version: VERSION, hostVersion: HOST_VERSION,
+    return { ...state, backend: this.backends.active?.key ?? null, themes: state.themes.map(publicTheme), activeTheme: publicTheme(this.theme(state.active, state.activeDigest)), version: VERSION, hostVersion: HOST_VERSION,
       discoveryError: this.discoveryError, discovering: !!this.discovering, revalidating: !!this.revalidating, probe: this.probe ? publicTheme(this.probe) : null };
   }
   start(task, metadata) {
@@ -329,10 +340,20 @@ export class ThemeEngine {
   }
   async expireActivation() {
     const pending = this.library.state.pending;
-    if (pending && pending.deadline <= Date.now()) await this.restoreActivation(pending.token, '主题启用超时，已恢复之前的外观。');
+    if (pending && !pending.rollbackError && pending.deadline <= Date.now()) await this.restoreActivation(pending.token, '主题启用超时，已恢复之前的外观。');
   }
   activate(id, options) {
-    return this.transition(async () => { await this.expireActivation(); return this.beginActivation(id, options); });
+    return this.transition(async () => {
+      await this.expireActivation();
+      const pending = this.library.state.pending;
+      if (id === 'default' && !options?.startup && pending?.rollbackError) {
+        await this.backends.retain([]);
+        for (const linked of new Set([this.theme(pending.id, pending.digest), this.theme(pending.previous, pending.previousDigest)]))
+          if (linked?.linked) await this.toggleLinked(linked, false);
+        await this.library.mutate(s => { s.active = 'default'; s.activeDigest = undefined; s.pending = null; });
+      }
+      return this.beginActivation(id, options);
+    });
   }
   async beginActivation(id, { startup = false } = {}) {
     const candidate = await this.library.begin(id, { startup });
@@ -345,6 +366,12 @@ export class ThemeEngine {
         await this.toggleLinked(theme, true);
       }
       this.controller.signal.throwIfAborted();
+      clearTimeout(this.expiry);
+      this.expiry = setTimeout(() => {
+        void this.transition(() => this.library.state.pending?.token === candidate.token && this.expireActivation())
+          .catch(error => this.ctx.logger?.warn?.(error.message));
+      }, Math.max(0, this.library.state.pending.deadline - Date.now()));
+      this.expiry.unref?.();
       candidate.theme = publicTheme(theme);
       candidate.previousTheme = publicTheme(previous);
       return candidate;
@@ -377,15 +404,25 @@ export class ThemeEngine {
     if (this.library.state.pending?.token !== token) return;
     const previous = this.theme(this.library.state.pending?.previous, this.library.state.pending?.previousDigest), candidate = this.theme(this.library.state.pending?.id, this.library.state.pending?.digest);
     if (this.library.state.pending.deadline !== 0) await this.library.mutate(s => { s.pending.deadline = 0; });
-    await this.backends.retain([previous]);
-    await this.restoreLinked(previous, candidate);
-    // After a process restart there is no managed backend to recover yet.
-    // Host compatibility revalidation must run before its first cold start.
-    if (!cold) {
-      if (previous && needsRecheck(previous)) throw new ThemeError('host-recheck-required', '原主题需要重新检查当前宿主兼容性，请重新导入后恢复');
-      await this.backends.start(previous);
+    clearTimeout(this.expiry);
+    try {
+      await this.backends.retain([previous]);
+      await this.restoreLinked(previous, candidate);
+      // After a process restart there is no managed backend to recover yet.
+      // Host compatibility revalidation must run before its first cold start.
+      if (!cold) {
+        if (previous && needsRecheck(previous)) throw new ThemeError('host-recheck-required', '原主题需要重新检查当前宿主兼容性，请重新导入后恢复');
+        await this.backends.start(previous);
+      }
+      return this.library.fail(token, message);
+    } catch (error) {
+      await this.library.mutate(s => {
+        s.pending.rollbackError = error.message;
+        s.pending.failureReason ??= message;
+        s.recovery = { id:s.pending.id, at:Date.now(), message:'主题回滚未完成：' + error.message };
+      });
+      throw error;
     }
-    return this.library.fail(token, message);
   }
   commit(token) {
     return this.transition(async () => {
@@ -395,7 +432,7 @@ export class ThemeEngine {
     });
   }
   async commitActivation(token) {
-    await this.library.commit(token);
+    await this.library.commit(token); clearTimeout(this.expiry);
     await this.backends.retain([this.theme(this.library.state.active, this.library.state.activeDigest)]);
   }
   remove(id) {
@@ -410,7 +447,7 @@ export class ThemeEngine {
     });
   }
   dispose() {
-    this.offReady?.(); this.controller.abort(); this.resolveInitialization?.();
+    clearTimeout(this.expiry); this.offReady?.(); this.controller.abort(); this.resolveInitialization?.();
     return this.disposal ||= this.activation.catch(() => {}).then(async () => {
       try {
         const pending = this.library.state?.pending;

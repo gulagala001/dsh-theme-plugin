@@ -70,23 +70,31 @@ export class NativeThemeBackends {
     this.configs = new ThemeConfigEntries(ctx, join(root, 'config'), hostRequire(cli));
     this.running = new Map(); this.pending = Promise.resolve(); this.closed = false;
   }
-  async start(theme) {
+  serialize(work) {
+    const next = this.pending.catch(() => {}).then(work);
+    this.pending = next;
+    return next;
+  }
+  async release(key, value) {
+    value.retiring = true;
+    await value.dispose();
+    this.running.delete(key);
+    if (this.active?.key === key) this.active = null;
+  }
+  start(theme) {
     if (!theme?.backend) return;
     const key = `${theme.id}/${theme.digest}`;
-    if (this.running.has(key)) return this.running.get(key);
-    const operation = this.pending.catch(() => {}).then(async () => {
+    return this.serialize(async () => {
       if (this.closed) throw new ThemeError('backend-cancelled', '主题后台已关闭');
-      if (this.running.get(key) !== operation) throw new ThemeError('backend-cancelled', '主题后台启动已取消');
-      if (this.active && this.active.key !== key) {
-        const previous = this.active; this.active = null;
-        this.running.delete(previous.key); await previous.value.dispose();
+      for (const [other, value] of this.running) {
+        if (other === key && !value.retiring) return value;
+        await this.release(other, value);
       }
       const value = await this.launch(theme);
-      if (this.closed || this.running.get(key) !== operation) { await value.dispose(); throw new ThemeError('backend-cancelled', '主题后台启动已取消'); }
-      this.active = { key, value }; return value;
-    }).catch(error => { if (this.running.get(key) === operation) this.running.delete(key); throw error; });
-    this.running.set(key, operation); this.pending = operation;
-    return operation;
+      this.running.set(key, value); this.active = { key, value };
+      if (this.closed) { await this.release(key, value); throw new ThemeError('backend-cancelled', '主题后台已关闭'); }
+      return value;
+    });
   }
   async launch(theme) {
     for (const [name, hash] of Object.entries(theme.files || {})) {
@@ -112,10 +120,30 @@ export class NativeThemeBackends {
       }
       return next(specifier, context);
     } });
-    let fiber, managedConfig, cancelled = false;
+    let fiber, managedConfig, preparingConfig, cancelled = false, hookActive = true;
+    const registrations = new Set();
+    const ownRegistration = remove => {
+      let pending;
+      const release = () => {
+        if (pending || !registrations.has(release)) return pending;
+        const result = remove();
+        if (result?.then) {
+          pending = Promise.resolve(result).then(() => registrations.delete(release)).finally(() => { pending = undefined; });
+          return pending;
+        }
+        registrations.delete(release);
+        return result;
+      };
+      registrations.add(release);
+      return release;
+    };
     const dispose = async () => {
-      if (cancelled) return; cancelled = true;
-      try { await managedConfig?.dispose(); await fiber?.dispose(); } finally { hook.deregister(); }
+      cancelled = true;
+      if (preparingConfig) await preparingConfig.catch(() => {});
+      if (managedConfig) { await managedConfig.dispose(); managedConfig = null; }
+      if (fiber) { await fiber.dispose(); fiber = null; }
+      for (const release of registrations) await release();
+      if (hookActive) { hook.deregister(); hookActive = false; }
     };
     try {
       const mod = await import(url), originalPlugin = typeof mod.apply === 'function' ? mod : mod.default;
@@ -143,8 +171,7 @@ export class NativeThemeBackends {
               if (key === 'registerFallback') throw new ThemeError('backend-route', '主题不能替换宿主的页面服务');
               const result = value.apply(server, args);
               if (!['tapIndex', 'registerUpgrade'].includes(key) || typeof result !== 'function') return result;
-              let owned = true;
-              const once = () => { if (owned) { owned = false; return result(); } };
+              const once = ownRegistration(result);
               owner.effect(() => once); return once;
             };
             else Object.defineProperty(facade, key, { enumerable: true, get: () => server[key] });
@@ -160,8 +187,7 @@ export class NativeThemeBackends {
               if (rejected !== undefined) { res.writeHead(rejected); res.end(); return; }
               return handler(req, res);
             } });
-            let owned = true;
-            const once = () => { if (owned) { owned = false; return release?.(); } };
+            const once = ownRegistration(() => release?.());
             owner.effect(() => once);
             return once;
           };
@@ -172,10 +198,13 @@ export class NativeThemeBackends {
         // Providers become available once their owning fiber is active. Do
         // not wait for their consumers inside the provider's apply().
         await fiber;
+        if (cancelled) throw new ThemeError('backend-cancelled', '主题后台已取消');
         if (fiber._error) throw fiber._error;
         if (!scope) throw new ThemeError('host-capability', '主题后台宿主依赖未就绪');
         if (plugin.Config?.toJSON) {
-          managedConfig = await this.configs.create(theme, scope, plugin);
+          preparingConfig = this.configs.create(theme, scope, plugin).then(value => managedConfig = value);
+          await preparingConfig;
+          if (cancelled) throw new ThemeError('backend-cancelled', '主题后台已取消');
           scope = scope.isolate('loader');
           scope.provide('loader', managedConfig.facade);
           managedConfig.entry.parent.ctx = scope;
@@ -199,16 +228,20 @@ export class NativeThemeBackends {
       if (this.closed) throw new ThemeError('backend-cancelled', '主题后台已关闭');
       this.ctx.get('settings')?.invalidate();
       return { dispose, configEntry: managedConfig?.entry };
-    } catch (error) { await dispose(); throw error; }
+    } catch (error) {
+      try { await dispose(); }
+      catch (cleanup) {
+        this.running.set(`${theme.id}/${theme.digest}`, { dispose, retiring: true });
+        throw new AggregateError([error, cleanup], error.message + '；清理失败：' + cleanup.message);
+      }
+      throw error;
+    }
   }
   retain(themes) {
     const keys = new Set(themes.filter(Boolean).map(t => `${t.id}/${t.digest}`));
-    const pending = [];
-    for (const [key, operation] of this.running) if (!keys.has(key)) {
-      if (this.active?.key === key) this.active = null;
-      this.running.delete(key); pending.push(operation.then(value => value.dispose(), () => {}));
-    }
-    return Promise.all(pending);
+    return this.serialize(async () => {
+      for (const [key, value] of this.running) if (!keys.has(key) || value.retiring) await this.release(key, value);
+    });
   }
-  async dispose() { this.closed = true; try { await this.retain([]); } finally { this.configs.dispose(); } }
+  async dispose() { this.closed = true; await this.retain([]); this.configs.dispose(); }
 }

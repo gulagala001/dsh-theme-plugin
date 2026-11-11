@@ -144,6 +144,10 @@ export function createClient(ctx, appearance, customization) {
   return {
     getSnapshot: () => state, subscribe: fn => { listeners.add(fn); return () => listeners.delete(fn); },
     api, report, refresh, activate, operation,
+    async retryRollback() {
+      const token = state.pending?.token;
+      if (token) { receive(await api('fail', { token, message: '已重新恢复原主题' })); await render(state.active || 'default', state.activeTheme); }
+    },
     async start(initial) {
       if (disposed) return;
       let guard;
@@ -156,7 +160,7 @@ export function createClient(ctx, appearance, customization) {
             await this.importFile(new File([JSON.stringify(value)], `${legacy.id}.omd-skin.json`, { type: 'application/json' }));
           } else await activate(visual.selected, { reload: false });
         }
-        if (state.active) {
+        if (state.active && !state.pending?.rollbackError) {
           const deadline = Date.now() + 35000;
           for (;;) {
             const theme = state.activeTheme || state.themes.find(t => t.id === state.active);

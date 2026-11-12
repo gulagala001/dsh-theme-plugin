@@ -1,5 +1,6 @@
 import React, { useSyncExternalStore } from 'react';
 import { createSkinRuntime } from '../../vendor/appearance/src/client/skins/runtime.mjs';
+import { OMD_BRAND } from '../../vendor/appearance/src/client/skins/advanced.mjs';
 import { observeSurfaces } from '../../vendor/appearance/src/client/skins/surfaces.mjs';
 import { applySidebarPresentation } from '../../vendor/appearance/src/client/sidebar.jsx';
 import { applyCodexIntegration } from '../../vendor/appearance/src/client/skins/codex-desktop/integration.jsx';
@@ -27,7 +28,7 @@ import { API } from '../shared/protocol.mjs';
 const STORAGE_KEY = 'dsh.theme.appearance.v1';
 // The shared appearance source stays byte-identical to OMD; only these product options differ.
 const PRODUCT = {
-  storageKey: STORAGE_KEY, defaultSkin: 'default', owner: { id: 'dsh-theme-plugin', priority: 10 }, tokenOwner: 'dsh-theme-plugin/appearance',
+  storageKey: STORAGE_KEY, defaultSkin: 'default', owner: { id: 'dsh-theme-plugin', priority: 5 }, companionBrand: { owner: 'omd', storageKey: 'omd.skins.v1', brand: OMD_BRAND }, tokenOwner: 'dsh-theme-plugin/appearance',
   brand: { themeLogo: '跟随主题', productLogo: '立体鲸鱼', productTitle: null, placeholder: 'DeepSeek Harness' },
   assetUrl: file => `${API}/builtin/${file}`,
 };
@@ -53,19 +54,36 @@ export function createAppearance(ctx) {
   return runtime;
 }
 function applyBrand(ctx, runtime) {
+  let product;
+  const listeners = new Set();
+  const subscribe = fn => { listeners.add(fn); return () => listeners.delete(fn); };
+  const publish = value => { product = value; for (const fn of listeners) fn(); };
+  ctx.inject(['omdAppearanceBrand'], scope => {
+    const brand = scope.omdAppearanceBrand;
+    publish(brand); scope.effect(() => () => { if (product === brand) publish(undefined); });
+  });
+  const useProduct = () => useSyncExternalStore(subscribe, () => product);
   function Mark({ size = 28, className }) {
     const { advanced } = useSyncExternalStore(runtime.subscribe, runtime.getSnapshot);
+    const product = useProduct();
+    if (product && !(advanced.brand.logo === 'custom' && advanced.brand.image)) return <product.Mark {...{ size, className }}/>;
     return <img width={size} height={size} className={className} alt="" src={advanced.brand.logo === 'custom' && advanced.brand.image || 'data:image/svg+xml,' + encodeURIComponent(whaleSvg('dtp-brand'))}/>;
   }
-  function Name() { const { advanced } = useSyncExternalStore(runtime.subscribe, runtime.getSnapshot); const text = advanced.brand.logo === 'custom' && advanced.brand.name || 'DeepSeek Harness'; return <strong className="dtp-wordmark glyph-wordmark" title={text}>{text}</strong>; }
+  function Name() {
+    const { advanced } = useSyncExternalStore(runtime.subscribe, runtime.getSnapshot);
+    const product = useProduct(), name = advanced.brand.logo === 'custom' ? advanced.brand.name : '';
+    if (product) return <product.Name name={name}/>;
+    const text = name || runtime.brand.placeholder;
+    return <strong className="dtp-wordmark glyph-wordmark" title={text}>{text}</strong>;
+  }
   for (const [name, Component] of [['sidebar.brand.mark', Mark], ['sidebar.brand.name', Name], ['conversation.hero.brand.mark', Mark]]) {
     ctx.slots.inject(name, () => {
       let release;
       const update = () => {
         const state = runtime.getSnapshot(), logo = state.advanced.brand.logo;
         const enabled = state.active && (name === 'sidebar.brand.name'
-          ? logo !== 'native' && (state.selected !== 'default' || logo === 'custom' || logo === 'omd')
-          : logo === 'custom' || logo === 'omd');
+          ? logo !== 'native' && (state.selected !== 'default' || runtime.brand.productTitle || logo === 'custom' || logo === 'omd')
+          : logo === 'custom' || logo === 'omd' || logo === 'theme' && Boolean(runtime.brand.productTitle));
         if (enabled && !release) release = ctx.slots.register({ name, id: 'dtp-brand', priority: -20 }, Component);
         else if (!enabled && release) { release(); release = null; }
       };

@@ -9,17 +9,17 @@
 打开 **插件 → ＋ 添加插件**，粘贴：
 
 ```text
-https://github.com/gulagala001/dsh-theme-plugin/releases/download/v0.3.5-dsh.0.2.2-rc.2/gulagala001-dsh-theme-plugin-0.3.5-dsh.0.2.2-rc.2.tgz
+https://github.com/gulagala001/dsh-theme-plugin/releases/download/v0.3.6-dsh.0.2.2-rc.2/gulagala001-dsh-theme-plugin-0.3.6-dsh.0.2.2-rc.2.tgz
 ```
 
-等手头的任务跑完，按提示启用或重启 DSH。校验文件：[SHA256SUMS](https://github.com/gulagala001/dsh-theme-plugin/releases/download/v0.3.5-dsh.0.2.2-rc.2/SHA256SUMS)。
+等手头的任务跑完，按提示启用或重启 DSH。校验文件：[SHA256SUMS](https://github.com/gulagala001/dsh-theme-plugin/releases/download/v0.3.6-dsh.0.2.2-rc.2/SHA256SUMS)。
 
 ## 用命令行安装
 
 用同一个 DSH 自带的命令行，把 `web` 换成你的 profile（桌面版是 `desktop`）：
 
 ```bash
-dsh plugin --profile web add "https://github.com/gulagala001/dsh-theme-plugin/releases/download/v0.3.5-dsh.0.2.2-rc.2/gulagala001-dsh-theme-plugin-0.3.5-dsh.0.2.2-rc.2.tgz"
+dsh plugin --profile web add "https://github.com/gulagala001/dsh-theme-plugin/releases/download/v0.3.6-dsh.0.2.2-rc.2/gulagala001-dsh-theme-plugin-0.3.6-dsh.0.2.2-rc.2.tgz"
 ```
 
 ## 复制给 AI
@@ -28,7 +28,7 @@ dsh plugin --profile web add "https://github.com/gulagala001/dsh-theme-plugin/re
 
 ```text
 请把 DSH Theme 安装到我现在用的 DSH profile：
-https://github.com/gulagala001/dsh-theme-plugin/releases/download/v0.3.5-dsh.0.2.2-rc.2/gulagala001-dsh-theme-plugin-0.3.5-dsh.0.2.2-rc.2.tgz
+https://github.com/gulagala001/dsh-theme-plugin/releases/download/v0.3.6-dsh.0.2.2-rc.2/gulagala001-dsh-theme-plugin-0.3.6-dsh.0.2.2-rc.2.tgz
 先确认 DSH 是 0.2.2-rc.2、Node.js 是 24.9.0 以上。包名应为 @gulagala001/dsh-theme-plugin，不要装 npm 上没有作用域的同名包。
 保留原来的配置、会话和主题文件，不要升级 DSH；需要重启时先确认没有任务在跑。
 装好后确认 设置 → 外观 里有外观设置、主题管理、市场三个页面。

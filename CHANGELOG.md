@@ -1,3 +1,31 @@
+# DSH Theme 0.3.6 · DSH 0.2.2-rc.2
+
+[中文](#zh-036) · [English](#en-036)
+
+<a id="zh-036"></a>
+
+## 中文
+
+### 体验优化
+
+- 首次使用时，侧栏、首页和窗口标题沿用 DSH 标识；升级保留已保存的品牌选择。
+
+<a id="en-036"></a>
+
+## English
+
+### Improvements
+
+- The sidebar, home screen and window title keep DSH branding on first use. Upgrades keep your saved branding choices.
+
+## 安装 / Installation
+
+DSH **0.2.2-rc.2** · Node.js **24.9.0+**
+
+[固定安装包 / Install package](https://github.com/gulagala001/dsh-theme-plugin/releases/download/v0.3.6-dsh.0.2.2-rc.2/gulagala001-dsh-theme-plugin-0.3.6-dsh.0.2.2-rc.2.tgz) · [安装指南 / Installation guide](https://github.com/gulagala001/dsh-theme-plugin/blob/main/docs/install.md) · [SHA256SUMS](https://github.com/gulagala001/dsh-theme-plugin/releases/download/v0.3.6-dsh.0.2.2-rc.2/SHA256SUMS)
+
+---
+
 # DSH Theme 0.3.5 · DSH 0.2.2-rc.2
 
 [中文](#zh-035) · [English](#en-035)

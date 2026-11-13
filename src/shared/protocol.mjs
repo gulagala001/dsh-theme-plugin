@@ -1,6 +1,6 @@
 export const PACKAGE = '@gulagala001/dsh-theme-plugin';
-export const VERSION = '0.3.6-dsh.0.2.2-rc.2';
-export const HOST_VERSION = '0.2.2-rc.2';
+export const VERSION = '0.3.7-dsh.0.2.2-rc.3';
+export const HOST_VERSION = '0.2.2-rc.3';
 export const PROTOCOL = 'dsh-theme-plugin/v1';
 export const API = '/api/dsh-theme-plugin';
 export const BUILTINS = [

@@ -23,6 +23,7 @@ export function ThemeSettings({ client, appearance, customization }) {
     <header className="dtp-heading"><div><h2>外观</h2><p>选择喜欢的主题，让工作空间更合心意。</p></div>{selected && <span className="dtp-active-label">{selected.name}</span>}</header>
     <SegmentedControl id="dtp-navigation" label="外观页面" value={page} options={[{ value: 'appearance', label: '外观设置' }, { value: 'themes', label: '主题管理' }, { value: 'market', label: '市场' }]} onChange={changePage}/>
     {state.busy && <div role="status" className="dtp-notice"><span className="dtp-spinner"/>{state.busy.label}…</div>}
+    {state.warning && <div role="status" className="dtp-notice">{state.warning}</div>}
     {state.reloadPending && <div role="status" className="dtp-notice">主题已启用；草稿发送或清空后会自动刷新，完成页面更新。</div>}
     {state.recovery && <div role="status" className="dtp-notice">{state.recovery.message}</div>}
     {state.pending?.rollbackError && <div role="alert">当前后台：{state.backend || '无已确认运行的托管后台'} <Button onClick={() => act(() => client.retryRollback())}>重试回滚</Button></div>}

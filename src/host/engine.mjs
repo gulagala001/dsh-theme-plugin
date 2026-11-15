@@ -427,13 +427,18 @@ export class ThemeEngine {
   commit(token) {
     return this.transition(async () => {
       await this.expireActivation();
-      await this.commitActivation(token);
-      return this.describe(await this.library.snapshot());
+      const warning = await this.commitActivation(token);
+      return { ...this.describe(await this.library.snapshot()), ...(warning ? { warning } : {}) };
     });
   }
   async commitActivation(token) {
     await this.library.commit(token); clearTimeout(this.expiry);
-    await this.backends.retain([this.theme(this.library.state.active, this.library.state.activeDigest)]);
+    try { await this.backends.retain([this.theme(this.library.state.active, this.library.state.activeDigest)]); }
+    catch (error) {
+      const warning = '新主题已启用，但旧主题后台尚未清理：' + error.message;
+      this.ctx.logger?.warn?.(warning);
+      return warning;
+    }
   }
   remove(id) {
     return this.transition(async () => {

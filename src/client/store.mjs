@@ -13,7 +13,7 @@ export function createClient(ctx, appearance, customization) {
         const binding = sessions.binding(id);
         if (!binding || !sessions.retainInfo(id).getSnapshot().retainedBy.mainView) continue;
         const input = conversation?.input.for(binding.ctx).state.getSnapshot();
-        if (input && (input.draft || input.attachmentIds?.length || ['adjudicating', 'submitting'].includes(input.phase))) return true;
+        if (input && (input.draft || input.attachmentIds?.length || ['adjudicating', 'submitting', 'sending'].includes(input.phase))) return true;
       }
     } catch { /* Fall back to the visible composer when no session is bound. */ }
     return [...document.querySelectorAll('[data-composer-input]')].some(input => input.isContentEditable && input.textContent.trim());
@@ -99,22 +99,31 @@ export function createClient(ctx, appearance, customization) {
   async function activate(id, { reload = true } = {}) {
     const originalSelection = appearance.getSnapshot().selected;
     const previous = state.activeTheme;
-    emit({ busy: { label: '正在应用主题' }, error: null });
-    let pending;
-    try {
-      pending = await api('activate', { id });
-      await render(id, pending.theme);
-      const committed = await api('commit', { token: pending.token });
-      if (!receive(committed)) await render(state.active || 'default', state.activeTheme);
+    emit({ busy: { label: '正在应用主题' }, error: null, warning: null });
+    let pending, confirming = false;
+    const finish = () => {
       channel?.postMessage({ revision: state.revision });
       const requiresReload = !!(previous?.backend?.requiresReload || pending.theme?.backend?.requiresReload);
       if (reload && requiresReload) reloadPage();
       return { requiresReload };
+    };
+    try {
+      pending = await api('activate', { id });
+      await render(id, pending.theme);
+      confirming = true;
+      const committed = await api('commit', { token: pending.token });
+      if (!receive(committed)) await render(state.active || 'default', state.activeTheme);
+      if (committed.warning) emit({ warning: committed.warning });
+      return finish();
     } catch (e) {
       if (pending && !disposed) {
         try {
           const restored = await api('fail', { token: pending.token, message: e.message });
-          receive(restored);
+          const current = receive(restored);
+          if (confirming && current && !restored.pending && restored.active === id && restored.activeDigest === pending.digest) {
+            emit({ warning: '已核实新主题启用，原确认回执未收到。' });
+            return finish();
+          }
           await render(state.active || originalSelection || 'default', state.activeTheme);
         } catch (cause) { if (!disposed) { appearance.reset(); e = recoveryError(e, cause); } }
       }

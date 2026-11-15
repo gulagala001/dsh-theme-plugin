@@ -158,7 +158,10 @@ export class ThemeEngine {
   }
   async installEntry(entry, progress, { resolveVersion = true } = {}) {
     const linked = entry.packageName && this.library.state.themes.find(t => t.linked?.packageName === entry.packageName);
-    if (linked) return { themes: [publicTheme(linked)] };
+    if (linked) {
+      if (!linked.report?.ok) throw new ThemeError('host-recheck-required', '此主题由 DSH 原生管理，请先在插件管理中检查或更新，再重新发现主题');
+      return { themes: [publicTheme(linked)] };
+    }
     const original = entry;
     const staging = join(this.root, 'staging', randomUUID());
     try {

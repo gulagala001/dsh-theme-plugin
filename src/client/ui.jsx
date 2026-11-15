@@ -2,9 +2,10 @@ import React, { useEffect, useState, useSyncExternalStore, useRef } from 'react'
 import { Button, Input, Select, SegmentedControl, Personalization, AppearanceSelect, EffectsToggle, AppearanceDrafts, useAppearanceDrafts } from './appearance.jsx';
 import { API, BUILTINS, repairTask } from '../shared/protocol.mjs';
 import { CustomizationSettings } from './customization.jsx';
+import { themeDetails } from './store.mjs';
 function activateEntry(client, entry) {
   if (!entry.localLegacy) return client.activate(entry.id);
-  const { builtin, localLegacy, installed, ...skin } = entry;
+  const { builtin, localLegacy, installed, canActivate, canInstall, installId, report, ...skin } = entry;
   return client.importFile(new File([JSON.stringify(skin)], `${skin.id}.omd-skin.json`, { type: 'application/json' }));
 }
 export function ThemeSettings({ client, appearance, customization }) {
@@ -77,9 +78,9 @@ function Manage({ client, state, appearance, visual, copy }) {
       <input ref={file} hidden type="file" accept=".json,.zip,.tgz,.gz" onChange={e => { const value = e.target.files?.[0]; e.target.value = ''; void client.importFile(value); }}/>
     </div>
     {state.discovering && <p role="status">正在识别已有主题，原设置保持可用…</p>}
-    <div className="dtp-grid">{list.map(entry => <Card key={entry.id} entry={entry} active={(state.active || visual.selected) === entry.id} onOpen={() => client.detail({ ...entry, installed: true })}>
-      <Button size="sm" variant="outline" disabled={!!state.busy || (state.active || visual.selected) === entry.id} onClick={() => activateEntry(client, entry)}>启用</Button>
-    </Card>)}</div>
+    <div className="dtp-grid">{list.map(entry => { const detail = themeDetails(state, entry); return <Card key={entry.id} entry={entry} active={(state.active || visual.selected) === entry.id} onOpen={() => client.detail(entry)}>
+      <Button size="sm" variant="outline" disabled={!!state.busy || detail.canActivate && (state.active || visual.selected) === entry.id} onClick={() => detail.canActivate ? activateEntry(client, entry) : detail.canInstall ? client.operation('install', { id: detail.installId }, { apply: true }) : client.detail(entry)}>{detail.canActivate ? '启用' : detail.canInstall ? '重新检查并安装' : '查看问题'}</Button>
+    </Card>; })}</div>
     {!!state.issues.length && <section className="dtp-issues"><h3>需要处理的主题</h3>{state.issues.map(issue => <article className="dtp-issue" key={issue.id}><div><strong>{issue.name}</strong><p>{issue.message}</p></div><Button size="sm" variant="outline" onClick={() => copy(issue.repair)}>复制给 AI 修复</Button></article>)}</section>}
   </div>;
 }
@@ -120,8 +121,8 @@ function Details({ entry, client, state, copy, appearance }) {
   const builtin = BUILTINS.some(x => x.id === entry.id);
   return <div className="dtp-detail"><Button size="sm" variant="ghost" onClick={() => client.detail(null)}>← 返回</Button>
     <div className="dtp-detail-title"><div><h2>{entry.name}</h2><p>{entry.author || 'dsh-theme-plugin'}{entry.version ? ` · v${entry.version}` : ''}</p></div>
-      {!entry.installed && !builtin && <Button variant="outline" size="sm" disabled={!!state.busy} onClick={() => client.operation('install', { id: entry.id })}>仅安装</Button>}
-      <Button size="sm" disabled={!!state.busy} onClick={() => entry.installed || builtin ? activateEntry(client, entry) : client.operation('install', { id: entry.id }, { apply: true })}>{entry.installed || builtin ? '启用主题' : '安装并应用'}</Button></div>
+      {!entry.canActivate && entry.canInstall && !builtin && <Button variant="outline" size="sm" disabled={!!state.busy} onClick={() => client.operation('install', { id: entry.installId })}>仅安装</Button>}
+      <Button size="sm" disabled={!!state.busy || !entry.canActivate && !entry.canInstall} onClick={() => entry.canActivate ? activateEntry(client, entry) : client.operation('install', { id: entry.installId }, { apply: true })}>{entry.canActivate ? '启用主题' : !entry.canInstall ? '请重新导入主题' : entry.installed ? '重新检查并安装' : '安装并应用'}</Button></div>
     {shots.length > 0 && <><img className="dtp-detail-image" src={shots[index]} referrerPolicy="no-referrer" alt={`${entry.name}预览 ${index + 1}`}/>{shots.length > 1 && <div className="dtp-thumbnails">{shots.map((url, i) => <button key={url} type="button" aria-label={`预览图 ${i + 1}`} aria-pressed={i === index} onClick={() => setIndex(i)}><img src={url} alt="" loading="lazy" referrerPolicy="no-referrer"/></button>)}</div>}</>}
     <p className="dtp-long-description">{entry.description || '此主题暂未提供详细说明。'}</p>
     <dl className="dtp-info">{entry.license && <><dt>许可声明</dt><dd>{typeof entry.license === 'string' ? entry.license : JSON.stringify(entry.license)}</dd></>}{entry.compatibility && <><dt>上游声明</dt><dd>{entry.compatibility}</dd></>}
@@ -137,7 +138,7 @@ function Details({ entry, client, state, copy, appearance }) {
     }}>复制 AI 检查说明</Button></div>
     {(entry.installed || builtin) && <div className="dtp-actions">{!entry.linked && <Button variant="outline" size="sm" disabled={entry.id === 'default'} onClick={() => client.exportTheme(entry.id)}>导出主题</Button>}
       {!builtin && <Button variant="outline" size="sm" disabled={!!state.busy} onClick={async () => { if (entry.localLegacy) appearance.remove(entry.id); else await client.remove(entry.id); client.detail(null); }}>移出主题管理</Button>}
-      {entry.source?.market && <Button variant="outline" size="sm" disabled={!!state.busy} onClick={() => client.operation('install', { id: entry.id })}>从原来源更新</Button>}
+      {entry.source?.market && <Button variant="outline" size="sm" disabled={!!state.busy} onClick={() => client.operation('install', { id: entry.installId })}>从原来源更新</Button>}
     </div>}
   </div>;
 }

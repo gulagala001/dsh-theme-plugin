@@ -123,6 +123,9 @@ test('native theme adoption avoids duplicate installs and restores exclusive rou
   await engine.library.commit((await engine.library.begin('native')).token);
   const adopted = await engine.installEntry({ id: 'market-native', packageName: 'native-theme' }, () => { throw Error('must not download a second copy'); });
   assert.equal(adopted.themes[0].id, 'native');
+  await engine.library.mutate(state => { state.themes.find(theme => theme.id === 'native').report.ok = false; });
+  await assert.rejects(engine.installEntry({ id: 'market-native', packageName: 'native-theme' }, () => { throw Error('must not duplicate a native installation'); }), /插件管理/);
+  await engine.library.mutate(state => { state.themes.find(theme => theme.id === 'native').report.ok = true; });
   const pending = await engine.activate('managed');
   assert.equal(route, 'managed');
   await engine.fail(pending.token, 'client failed');

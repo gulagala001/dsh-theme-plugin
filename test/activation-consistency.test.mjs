@@ -4,7 +4,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ThemeEngine } from '../src/host/engine.mjs';
-import { createClient } from '../src/client/store.mjs';
+import { createClient, themeDetails } from '../src/client/store.mjs';
 import { ADAPTER_VERSION } from '../src/shared/host-contract.mjs';
 
 const deferred = () => {
@@ -201,6 +201,24 @@ function clientFixture(t, request) {
   return { client, selected: () => selected };
 }
 const response = (value, ok = true) => ({ ok, json: async () => value });
+
+test('details follow installation receipts and compatibility changes without reopening', async t => {
+  let themes = [];
+  const { client } = clientFixture(t, async action => {
+    if (action === 'install') return response({ id: 'operation' });
+    if (action === 'operation') { themes = [{ id: 'sample', report: { ok: true } }]; return response({ state: 'done', result: { themes } }); }
+    return response({ active: 'default', themes, revision: 1 });
+  });
+  client.detail({ id: 'sample', name: 'Example', installed: false });
+  await client.operation('install', { id: 'sample' });
+  assert.equal(client.getSnapshot().detail.installed, true); assert.equal(client.getSnapshot().detail.canActivate, true);
+  themes = [{ id: 'sample', report: { ok: false } }]; await client.refresh();
+  assert.equal(client.getSnapshot().detail.canActivate, false);
+  assert.equal(client.getSnapshot().detail.canInstall, false, 'local themes without a catalog source require reimport');
+  themes = []; await client.refresh(); assert.equal(client.getSnapshot().detail.installed, false);
+  const linked = themeDetails({ themes: [{ id: 'local', linked: { packageName: 'pkg' }, report: { ok: true } }], catalog: { items: [{ id: 'market', packageName: 'pkg' }] } }, { id: 'market', packageName: 'pkg' });
+  assert.equal(linked.id, 'local'); assert.equal(linked.installId, 'market'); assert.equal(linked.canActivate, true);
+});
 
 test('successful activation uses its committed state even when a later read is unavailable', async t => {
   let active = 'default', reads = 0;

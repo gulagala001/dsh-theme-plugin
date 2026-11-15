@@ -1,9 +1,23 @@
 import { API, BUILTINS, repairTask } from '../shared/protocol.mjs';
 import { mountExternal } from './external.mjs';
 import { needsRuntimeProbe } from '../shared/host-contract.mjs';
+export function themeDetails(state, entry) {
+  if (!entry) return null;
+  const packageName = entry.packageName ?? entry.linked?.packageName;
+  const matches = theme => theme.id === entry.id || packageName && (theme.packageName ?? theme.linked?.packageName) === packageName;
+  const catalog = state.catalog?.items?.find(matches);
+  const installed = state.themes.find(matches);
+  const builtin = BUILTINS.find(theme => theme.id === entry.id);
+  return { ...entry, ...catalog, ...builtin, ...installed,
+    installed: Boolean(installed || builtin || entry.localLegacy),
+    report: installed?.report,
+    canActivate: Boolean(builtin || entry.localLegacy || installed?.report?.ok),
+    canInstall: !installed || Boolean(catalog || installed.source?.market),
+    installId: catalog?.id ?? entry.id };
+}
 export function createClient(ctx, appearance, customization) {
   let state = { ready: false, themes: [], issues: [], active: null, catalog: { items: [], sources: [] }, busy: null, error: null, detail: null }, disposed = false, externalCleanup, externalId, serial = 0;
-  const listeners = new Set();
+  const listeners = new Set(); let detailTarget = null;
   const controller = new AbortController();
   let monitor, observedRevision = -1, externalDigest;
   const hasDraft = () => {
@@ -46,7 +60,7 @@ export function createClient(ctx, appearance, customization) {
     void activate(fallback).then(() => report(Error(`主题运行失败，已尝试恢复可用外观：${error?.message || event.message || '未知错误'}`), theme)).finally(() => { recovering = false; });
   };
   for (const event of ['error', 'unhandledrejection', 'dtp:theme-error']) window.addEventListener(event, onRuntimeError);
-  const emit = patch => { if (disposed) return; state = { ...state, ...patch }; for (const fn of listeners) fn(); };
+  const emit = patch => { if (disposed) return; state = { ...state, ...patch }; state.detail = themeDetails(state, detailTarget); for (const fn of listeners) fn(); };
   function receive(next) {
     if (disposed || next.revision < (state.revision ?? -1)) return false;
     emit({ ...next, ready: true }); observedRevision = next.revision;
@@ -238,7 +252,7 @@ export function createClient(ctx, appearance, customization) {
         const url = URL.createObjectURL(result.blob), a = document.createElement('a'); a.href = url; a.download = result.name; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
       } catch (e) { report(e); }
     },
-    detail: detail => emit({ detail }), dismiss: () => emit({ error: null }),
+    detail: detail => { detailTarget = detail; emit({}); }, dismiss: () => emit({ error: null }),
     dispose() { disposed = true; controller.abort(); ++serial; clearTimeout(monitor); channel?.close(); offAppearance(); externalCleanup?.(); for (const event of ['error', 'unhandledrejection', 'dtp:theme-error']) window.removeEventListener(event, onRuntimeError); listeners.clear(); },
   };
 }

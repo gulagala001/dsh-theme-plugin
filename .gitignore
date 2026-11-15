@@ -21,3 +21,4 @@ test-results/
 playwright-report/
 coverage/
 *.map
+.codegraph/

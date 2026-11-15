@@ -217,6 +217,16 @@ test('successful activation uses its committed state even when a later read is u
   assert.equal(reads, 1, 'the commit already carries the authoritative state');
 });
 
+test('a backend change waits for explicit reload and a chat draft still blocks that click', async t => {
+  const { client } = clientFixture(t, async action => action === 'activate'
+    ? response({token:'reload',theme:{backend:{requiresReload:true}}}) : response({active:'glyph-motion',revision:2,themes:[]}));
+  let calls=0; window.location={reload:()=>calls++};
+  await client.activate('glyph-motion'); assert.equal(client.getSnapshot().reloadPending,true); assert.equal(calls,0);
+  document.querySelectorAll=()=>[{isContentEditable:true,textContent:'unsent'}];
+  client.reloadPage(); assert.equal(calls,0); assert.match(client.getSnapshot().reloadNote,/草稿/);
+  document.querySelectorAll=()=>[]; client.reloadPage(); assert.equal(calls,1);
+});
+
 test('a rejected activation renders the server recovery receipt instead of an obsolete predecessor', async t => {
   const { client, selected } = clientFixture(t, async action => {
     if (action === 'activate') return response({ token: 'expired', previous: 'default' });

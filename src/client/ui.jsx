@@ -24,7 +24,7 @@ export function ThemeSettings({ client, appearance, customization }) {
     <SegmentedControl id="dtp-navigation" label="外观页面" value={page} options={[{ value: 'appearance', label: '外观设置' }, { value: 'themes', label: '主题管理' }, { value: 'market', label: '市场' }]} onChange={changePage}/>
     {state.busy && <div role="status" className="dtp-notice"><span className="dtp-spinner"/>{state.busy.label}…</div>}
     {state.warning && <div role="status" className="dtp-notice">{state.warning}</div>}
-    {state.reloadPending && <div role="status" className="dtp-notice">主题已启用；草稿发送或清空后会自动刷新，完成页面更新。</div>}
+    {state.reloadPending && <div role="status" className="dtp-notice">{state.reloadNote || '主题已启用，页面尚未刷新。请先保存所有面板的编辑。'} <Button size="sm" disabled={!!state.busy} onClick={() => { if (drafts.flush()) client.reloadPage(); }}>已保存，刷新页面</Button></div>}
     {state.recovery && <div role="status" className="dtp-notice">{state.recovery.message}</div>}
     {state.pending?.rollbackError && <div role="alert">当前后台：{state.backend || '无已确认运行的托管后台'} <Button onClick={() => act(() => client.retryRollback())}>重试回滚</Button></div>}
     {state.error && <div role="alert" className="dtp-error"><strong>暂时无法完成</strong><p>{state.error.message}</p><div className="dtp-actions">
@@ -107,6 +107,7 @@ function Market({ client, state }) {
         const statusLabel = installed?.report?.ok ? `已通过 DSH ${state.hostVersion} 本机检查` :
           entry.hostStatus === 'other' || issue?.code === 'host-version' ? '旧条目 · 安装时查找适配当前 DSH 的新版' : issue ? '上次检查未通过 · 可查看原因并重试' : '安装前检查当前 DSH 兼容性';
         return <Card key={entry.id} entry={{ ...entry, statusLabel }} active={state.active === entry.id} sourceLabel={sources.find(s => s.id === entry.source)?.name} onOpen={() => client.detail({ ...entry, ...(installed || {}), installed: !!installed })}>
+          {!installed?.report?.ok && <Button variant="outline" size="sm" disabled={!!state.busy} onClick={() => client.operation('install', { id: entry.id })}>仅安装</Button>}
           <Button variant="outline" size="sm" disabled={!!state.busy} onClick={() => installed?.report?.ok ? client.activate(installed.id) : client.operation('install', { id: entry.id }, { apply: true })}>{installed?.report?.ok ? '启用' : entry.hostStatus === 'other' ? '检查新版并安装' : installed ? '重新检查并安装' : '安装并应用'}</Button>
         </Card>;
       })}</div>}
@@ -119,6 +120,7 @@ function Details({ entry, client, state, copy, appearance }) {
   const builtin = BUILTINS.some(x => x.id === entry.id);
   return <div className="dtp-detail"><Button size="sm" variant="ghost" onClick={() => client.detail(null)}>← 返回</Button>
     <div className="dtp-detail-title"><div><h2>{entry.name}</h2><p>{entry.author || 'dsh-theme-plugin'}{entry.version ? ` · v${entry.version}` : ''}</p></div>
+      {!entry.installed && !builtin && <Button variant="outline" size="sm" disabled={!!state.busy} onClick={() => client.operation('install', { id: entry.id })}>仅安装</Button>}
       <Button size="sm" disabled={!!state.busy} onClick={() => entry.installed || builtin ? activateEntry(client, entry) : client.operation('install', { id: entry.id }, { apply: true })}>{entry.installed || builtin ? '启用主题' : '安装并应用'}</Button></div>
     {shots.length > 0 && <><img className="dtp-detail-image" src={shots[index]} referrerPolicy="no-referrer" alt={`${entry.name}预览 ${index + 1}`}/>{shots.length > 1 && <div className="dtp-thumbnails">{shots.map((url, i) => <button key={url} type="button" aria-label={`预览图 ${i + 1}`} aria-pressed={i === index} onClick={() => setIndex(i)}><img src={url} alt="" loading="lazy" referrerPolicy="no-referrer"/></button>)}</div>}</>}
     <p className="dtp-long-description">{entry.description || '此主题暂未提供详细说明。'}</p>

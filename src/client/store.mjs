@@ -5,7 +5,7 @@ export function createClient(ctx, appearance, customization) {
   let state = { ready: false, themes: [], issues: [], active: null, catalog: { items: [], sources: [] }, busy: null, error: null, detail: null }, disposed = false, externalCleanup, externalId, serial = 0;
   const listeners = new Set();
   const controller = new AbortController();
-  let monitor, reloadTimer, observedRevision = -1, externalDigest;
+  let monitor, observedRevision = -1, externalDigest;
   const hasDraft = () => {
     try {
       const sessions = ctx.get('sessions'), conversation = ctx.get('conversation');
@@ -18,16 +18,12 @@ export function createClient(ctx, appearance, customization) {
     } catch { /* Fall back to the visible composer when no session is bound. */ }
     return [...document.querySelectorAll('[data-composer-input]')].some(input => input.isContentEditable && input.textContent.trim());
   };
+  // A blank composer says nothing about unsaved edits owned by other panels.
+  const requestReload = () => emit({ reloadPending: true, reloadNote: null });
   const reloadPage = () => {
-    clearTimeout(reloadTimer);
-    reloadTimer = setTimeout(() => {
-      if (disposed) return;
-      if (state.busy || hasDraft()) {
-        emit({ reloadPending: true });
-        reloadPage(); return;
-      }
-      window.location.reload();
-    }, state.reloadPending ? 1000 : 200);
+    if (disposed || state.busy || !state.reloadPending) return;
+    if (hasDraft()) { emit({ reloadNote: '请先保存聊天草稿，或等待发送完成，再手动刷新。' }); return; }
+    window.location.reload();
   };
   const channel = typeof BroadcastChannel === 'function' ? new BroadcastChannel('dsh-theme-plugin/library') : null;
   let appearanceActive = appearance.getSnapshot().active;
@@ -92,7 +88,7 @@ export function createClient(ctx, appearance, customization) {
     if (apply && next.active && (next.active !== externalId || next.activeTheme?.digest !== externalDigest)) {
       await render(next.active, next.activeTheme);
       if ((previous?.id !== next.activeTheme?.id || previous?.digest !== next.activeTheme?.digest) &&
-        (previous?.backend?.requiresReload || next.activeTheme?.backend?.requiresReload)) reloadPage();
+        (previous?.backend?.requiresReload || next.activeTheme?.backend?.requiresReload)) requestReload();
     }
     return next;
   }
@@ -104,7 +100,7 @@ export function createClient(ctx, appearance, customization) {
     const finish = () => {
       channel?.postMessage({ revision: state.revision });
       const requiresReload = !!(previous?.backend?.requiresReload || pending.theme?.backend?.requiresReload);
-      if (reload && requiresReload) reloadPage();
+      if (reload && requiresReload) requestReload();
       return { requiresReload };
     };
     try {
@@ -152,7 +148,7 @@ export function createClient(ctx, appearance, customization) {
   }
   return {
     getSnapshot: () => state, subscribe: fn => { listeners.add(fn); return () => listeners.delete(fn); },
-    api, report, refresh, activate, operation,
+    api, report, refresh, activate, operation, reloadPage,
     async retryRollback() {
       const token = state.pending?.token;
       if (token) { receive(await api('fail', { token, message: '已重新恢复原主题' })); await render(state.active || 'default', state.activeTheme); }
@@ -184,7 +180,7 @@ export function createClient(ctx, appearance, customization) {
           await render(state.active, state.activeTheme);
           if (guard) receive(await api('commit', { token: guard.token }));
           const active = state.activeTheme;
-          if (active?.backend?.requiresReload && window.__DTP_INDEX_BACKEND__ !== `${active.id}/${active.digest}`) reloadPage();
+          if (active?.backend?.requiresReload && window.__DTP_INDEX_BACKEND__ !== `${active.id}/${active.digest}`) requestReload();
         }
         if (disposed) return;
         const synchronize = async () => {
@@ -230,7 +226,7 @@ export function createClient(ctx, appearance, customization) {
         await api('remove', { id });
         if (theme?.legacy) appearance.remove(theme.legacy.id);
         await refresh(); channel?.postMessage({ revision: state.revision });
-        if (switched.requiresReload) reloadPage();
+        if (switched.requiresReload) requestReload();
       } catch (e) { report(e); }
     },
     async exportTheme(id) {
@@ -243,6 +239,6 @@ export function createClient(ctx, appearance, customization) {
       } catch (e) { report(e); }
     },
     detail: detail => emit({ detail }), dismiss: () => emit({ error: null }),
-    dispose() { disposed = true; controller.abort(); ++serial; clearTimeout(monitor); clearTimeout(reloadTimer); channel?.close(); offAppearance(); externalCleanup?.(); for (const event of ['error', 'unhandledrejection', 'dtp:theme-error']) window.removeEventListener(event, onRuntimeError); listeners.clear(); },
+    dispose() { disposed = true; controller.abort(); ++serial; clearTimeout(monitor); channel?.close(); offAppearance(); externalCleanup?.(); for (const event of ['error', 'unhandledrejection', 'dtp:theme-error']) window.removeEventListener(event, onRuntimeError); listeners.clear(); },
   };
 }

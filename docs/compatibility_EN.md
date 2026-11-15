@@ -32,7 +32,7 @@ The original theme package is kept as is; compiled and adapted output is stored 
 
 Dynamic themes run in a separate DSH profile and a separate browser: the page loads, text is typed, settings open, light and dark switch, the theme is unloaded and loaded again, the backend stops and resumes, and the page is reopened. Themes with a settings form also get a test save. Each theme gets its own environment, so one broken theme cannot affect the next.
 
-Some themes need to change the startup page, and switching to them reloads automatically; if the composer holds an unsent draft or attachments, the reload waits until you send. A failed install leaves your appearance unchanged, and a failed enable returns to your previous choice. After a plugin or DSH update, affected themes are checked again, and the theme library and settings are kept.
+Some themes need a page reload to finish applying. Save edits in other panels and finish any chat drafts, then use the reload button; the plugin does not reload automatically. A failed install leaves your appearance unchanged, and a failed enable returns to your previous choice. After a plugin or DSH update, affected themes are checked again, and the theme library and settings are kept.
 
 Removing the theme in use first switches back to the native DSH appearance, then stops its backend.
 

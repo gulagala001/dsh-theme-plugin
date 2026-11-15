@@ -1,3 +1,35 @@
+# DSH Theme 0.3.8 · DSH 0.2.2-rc.3
+
+[中文](#zh-038) · [English](#en-038)
+
+<a id="zh-038"></a>
+
+## 中文
+
+### 体验优化
+
+- 主题可以仅安装，也可以安装后启用；需要刷新页面时由你确认。
+- 详情页及时显示安装结果，不再为尚未通过兼容检查的主题提供直接启用。
+- 主题切换结果不再被后续清理或读取失败覆盖。
+
+<a id="en-038"></a>
+
+## English
+
+### Improvements
+
+- Install a theme on its own or install and activate it; page reloads wait for your confirmation.
+- Details reflect completed installations and offer the appropriate recovery action for themes that need compatibility checks.
+- Theme activation results remain visible when later cleanup or reads fail.
+
+## 安装 / Installation
+
+DSH **0.2.2-rc.3** · Node.js **24.9.0+**
+
+[固定安装包 / Install package](https://github.com/gulagala001/dsh-theme-plugin/releases/download/v0.3.8-dsh.0.2.2-rc.3/gulagala001-dsh-theme-plugin-0.3.8-dsh.0.2.2-rc.3.tgz) · [安装指南 / Installation guide](https://github.com/gulagala001/dsh-theme-plugin/blob/main/docs/install.md) · [SHA256SUMS](https://github.com/gulagala001/dsh-theme-plugin/releases/download/v0.3.8-dsh.0.2.2-rc.3/SHA256SUMS)
+
+---
+
 # DSH Theme 0.3.7 · DSH 0.2.2-rc.3
 
 [中文](#zh-037) · [English](#en-037)

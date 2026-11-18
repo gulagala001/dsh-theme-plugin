@@ -1,3 +1,33 @@
+# DSH Theme 0.3.9 · DSH 0.2.2-rc.3
+
+**未发布 / Unreleased.**
+
+[中文](#zh-039) · [English](#en-039)
+
+<a id="zh-039"></a>
+
+## 中文
+
+### 体验优化
+
+- 主题切换会先释放上一份外观。清理失败时保留错误并可重试，避免样式叠加。
+
+<a id="en-039"></a>
+
+## English
+
+### Improvements
+
+- Theme changes wait for the previous appearance to release. Failed cleanup stays visible and retryable so themes do not overlap.
+
+## 安装 / Installation
+
+DSH **0.2.2-rc.3** · Node.js **24.9.0+**
+
+[固定安装包 / Install package](https://github.com/gulagala001/dsh-theme-plugin/releases/download/v0.3.9-dsh.0.2.2-rc.3/gulagala001-dsh-theme-plugin-0.3.9-dsh.0.2.2-rc.3.tgz) · [安装指南 / Installation guide](https://github.com/gulagala001/dsh-theme-plugin/blob/main/docs/install.md) · [SHA256SUMS](https://github.com/gulagala001/dsh-theme-plugin/releases/download/v0.3.9-dsh.0.2.2-rc.3/SHA256SUMS)
+
+---
+
 # DSH Theme 0.3.8 · DSH 0.2.2-rc.3
 
 [中文](#zh-038) · [English](#en-038)

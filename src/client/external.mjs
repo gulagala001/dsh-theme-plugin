@@ -89,7 +89,7 @@ export async function mountExternal(ctx, theme) {
       const compatibilityServices = ctx.get('settingsScope') ? {} : { settingsScope: themeSettings(theme, scope) };
       const scopes = window.__DTP_THEME_SCOPES__ ||= new Map();
       scopes.set(theme.client.moduleId, scope);
-      cleanups.push(() => { scope.dispose(); scopes.delete(theme.client.moduleId); });
+      cleanups.push(() => { scope.dispose(); if (scopes.get(theme.client.moduleId) === scope) scopes.delete(theme.client.moduleId); });
       for (const name of theme.client.requires || []) {
         try { scope.modules.set(name, scope.adaptModule(name, await modules.import(name))); }
         catch {

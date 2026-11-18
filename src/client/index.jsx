@@ -46,7 +46,7 @@ export function apply(ctx) {
       client = createClient(ctx, appearance, customization);
       await client.start(initial); publish();
     } catch (e) {
-      client?.dispose(); client = undefined;
+      await client?.dispose(); client = undefined;
       await appearanceFiber?.dispose();
       error = e.message; publish();
       if (window.__DTP_PROBE_MODE__ || window.__DTP_PROBE_READY__ || location.search.includes('theme-probe')) window.__DTP_PROBE_RESULT__ = { ok: false, error: e.message, code: e.code, details: e.details };
@@ -70,5 +70,5 @@ export function apply(ctx) {
     refreshPage();
     return () => { refreshPage = () => {}; release?.(); };
   });
-  ctx.effect(() => { void loading(); return () => { disposed = true; client?.dispose(); customization.dispose(); listeners.clear(); }; });
+  ctx.effect(() => { void loading(); return async () => { disposed = true; listeners.clear(); try { await client?.dispose(); } finally { customization.dispose(); } }; });
 }

@@ -40,12 +40,13 @@ export function createClient(ctx, appearance, customization) {
     window.location.reload();
   };
   const channel = typeof BroadcastChannel === 'function' ? new BroadcastChannel('dsh-theme-plugin/library') : null;
+  let rendering = Promise.resolve();
   let appearanceActive = appearance.getSnapshot().active;
   const offAppearance = appearance.subscribe(() => {
     const active = appearance.getSnapshot().active;
     if (active === appearanceActive) return;
     appearanceActive = active;
-    if (!active) { ++serial; externalCleanup?.(); externalCleanup = null; externalId = null; customization?.select(null); }
+    if (!active) { void render(null).catch(report); }
     else if (state.active && !BUILTINS.some(t => t.id === state.active)) queueMicrotask(() => { if (!disposed && appearanceActive) void render(state.active, state.activeTheme).catch(e => report(e)); });
   });
   let recovering = false;
@@ -76,11 +77,18 @@ export function createClient(ctx, appearance, customization) {
   }
   function report(e, theme) { emit({ error: { message: e.message, repair: e.repair || repairTask({ theme, error: e }) } }); }
   const recoveryError = (error, cause) => Object.assign(Error(`${error.message}；外观恢复未完成：${cause.message}`), { code: cause.code, repair: cause.repair });
-  async function render(id, revision) {
-    controller.signal.throwIfAborted();
-    const generation = ++serial, previous = externalCleanup; externalCleanup = null; externalId = null; externalDigest = null;
+  function render(id, revision) {
+    const generation = ++serial;
+    rendering = rendering.catch(() => {}).then(() => applyTheme(id, revision, generation));
+    return rendering;
+  }
+  async function applyTheme(id, revision, generation) {
+    if (generation !== serial) throw Error('主题切换已取消');
+    const previous = externalCleanup;
     customization?.select(null);
     await previous?.();
+    externalCleanup = null; externalId = null; externalDigest = null;
+    if (!id) return;
     controller.signal.throwIfAborted();
     if (generation !== serial) throw Error('主题切换已取消');
     const builtin = BUILTINS.find(x => x.id === id);
@@ -253,6 +261,6 @@ export function createClient(ctx, appearance, customization) {
       } catch (e) { report(e); }
     },
     detail: detail => { detailTarget = detail; emit({}); }, dismiss: () => emit({ error: null }),
-    dispose() { disposed = true; controller.abort(); ++serial; clearTimeout(monitor); channel?.close(); offAppearance(); externalCleanup?.(); for (const event of ['error', 'unhandledrejection', 'dtp:theme-error']) window.removeEventListener(event, onRuntimeError); listeners.clear(); },
+    dispose() { disposed = true; controller.abort(); clearTimeout(monitor); channel?.close(); offAppearance(); for (const event of ['error', 'unhandledrejection', 'dtp:theme-error']) window.removeEventListener(event, onRuntimeError); listeners.clear(); return render(null); },
   };
 }

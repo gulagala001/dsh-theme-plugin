@@ -1,7 +1,5 @@
 # DSH Theme 0.3.9 · DSH 0.2.2-rc.3
 
-**未发布 / Unreleased.**
-
 [中文](#zh-039) · [English](#en-039)
 
 <a id="zh-039"></a>

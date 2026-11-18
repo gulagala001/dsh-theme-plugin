@@ -122,3 +122,12 @@ test('failed backend teardown stays owned until a retried disposition succeeds',
   await runtime.start(b);await runtime.dispose();
   assert.deepEqual(calls,['start old','dispose old','dispose old','start new','dispose new']);
 });
+
+test('shared theme retirement preserves failed disposers and retries them alone', async () => {
+  const {themeCleanup}=await import('../src/client/external.mjs');
+  const gate=Promise.withResolvers(), calls=[];let fail=true;
+  const release=themeCleanup([()=>calls.push(1),async()=>{calls.push(2);await gate.promise;if(fail)throw Error('held');},()=>calls.push(3)]);
+  const pending=release();assert.equal(release(),pending);gate.resolve();
+  await assert.rejects(pending,error=>error.errors[0].message==='held');
+  fail=false;await release();await release();assert.deepEqual(calls,[3,2,1,2]);
+});

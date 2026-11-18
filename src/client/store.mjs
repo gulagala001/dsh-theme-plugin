@@ -99,9 +99,13 @@ export function createClient(ctx, appearance, customization) {
     appearance.select('default');
     if (!appearanceActive) return;
     customization?.select(theme.originalId, !theme.linked);
-    const release = await mountExternal(ctx, theme);
-    if (disposed || generation !== serial) { await release(); throw Error('主题切换已取消'); }
-    externalCleanup = release; externalId = id; externalDigest = theme.digest;
+    try { externalCleanup = await mountExternal(ctx, theme); }
+    catch (error) { externalCleanup = error.retryCleanup; throw error; }
+    if (disposed || generation !== serial) {
+      await externalCleanup(); externalCleanup = null;
+      throw Error('主题切换已取消');
+    }
+    externalId = id; externalDigest = theme.digest;
   }
   async function refresh({ apply = false } = {}) {
     const previous = state.activeTheme;

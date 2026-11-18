@@ -7,15 +7,23 @@ const script = url => new Promise((done, fail) => {
   el.onload = () => { el.remove(); done(); }; el.onerror = () => { el.remove(); fail(Error('主题客户端资源无法加载')); };
   document.head.append(el);
 });
+// A release receipt covers every acquired effect. Keep only the disposers
+// whose outcome is still unresolved so a retry never repeats a successful one.
+export function themeCleanup(effects) {
+  let pending;
+  return () => pending ??= Promise.resolve().then(async () => {
+    const errors = [];
+    for (let i = effects.length - 1; i >= 0; i--) {
+      try { await effects[i](); effects.splice(i, 1); }
+      catch (error) { errors.push(error); }
+    }
+    if (errors.length) throw new AggregateError(errors, '主题资源清理未完成');
+  }).catch(error => { pending = undefined; throw error; });
+}
 export async function mountExternal(ctx, theme) {
   if (theme.linked) return () => {};
   const cleanups = [], root = document.documentElement;
-  let disposed = false, cleanupPromise;
-  const cleanup = () => cleanupPromise ||= (async () => {
-    if (disposed) return; disposed = true; const errors = [];
-    for (const fn of cleanups.reverse()) try { await fn(); } catch (e) { errors.push(e); }
-    if (errors.length) console.warn('主题资源清理失败', errors);
-  })();
+  const cleanup = themeCleanup(cleanups);
   const ownAttribute = (element, key, value) => {
     const prior = element.getAttribute(key); element.setAttribute(key, value);
     cleanups.push(() => { if (element.getAttribute(key) === value) { if (prior === null) element.removeAttribute(key); else element.setAttribute(key, prior); } });
@@ -148,7 +156,13 @@ export async function mountExternal(ctx, theme) {
     window.removeEventListener('dtp:theme-error', onCustomizationError);
     window.removeEventListener('error', onLoadError); window.removeEventListener('unhandledrejection', onLoadError);
     return cleanup;
-  } catch (e) { await cleanup(); throw e; }
+  } catch (error) {
+    try { await cleanup(); }
+    catch (failure) {
+      throw Object.assign(new AggregateError([error, failure], error.message + '；' + failure.message), { retryCleanup: cleanup });
+    }
+    throw error;
+  }
 }
 export async function runProbe(ctx, theme) {
   const errors = [], onError = e => errors.push(e.message || e.reason?.message || String(e.reason));

@@ -1,12 +1,12 @@
-import { mkdir, writeFile, readdir, readFile, cp, realpath } from 'node:fs/promises';
-import { join, dirname, basename, resolve, relative } from 'node:path';
+import { mkdir, writeFile, readdir, cp, realpath } from 'node:fs/promises';
+import { join, dirname, basename, relative } from 'node:path';
 import { createGunzip } from 'node:zlib';
 import { Readable } from 'node:stream';
 import tar from 'tar-stream';
 import { unzipSync } from 'fflate';
 import { download, fetchJson } from './network.mjs';
 import { inside, exists, json, walk, digest } from './files.mjs';
-import { ThemeError, slug } from '../shared/protocol.mjs';
+import { ThemeError } from '../shared/protocol.mjs';
 const MAX_BYTES = 512 * 1024 * 1024;
 export async function publishedFallback(root, target, options = {}) {
   const pkg = await json(join(root, 'package.json'), {});

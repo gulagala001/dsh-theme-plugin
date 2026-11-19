@@ -1,4 +1,4 @@
-import { readFile, stat, writeFile } from 'node:fs/promises';
+import { readFile, stat } from 'node:fs/promises';
 import { basename, dirname, join } from 'node:path';
 import { json, exists, walk, digest, ownedFile } from './files.mjs';
 import { transformCss } from './styles.mjs';
@@ -10,7 +10,7 @@ import { clientSource } from './client-build.mjs';
 import { declaredHost, hostFit } from './versions.mjs';
 export { inspectClient } from './client-entry.mjs';
 import { ADAPTER_VERSION } from '../shared/host-contract.mjs';
-import { API, HOST_VERSION, PROTOCOL, ThemeError, slug, text } from '../shared/protocol.mjs';
+import { API, HOST_VERSION, PROTOCOL, ThemeError, text } from '../shared/protocol.mjs';
 import { validateSkin } from '../../vendor/appearance/src/client/skins/format.mjs';
 const MAX_TEXT = 12 * 1024 * 1024;
 function tokens(value) {

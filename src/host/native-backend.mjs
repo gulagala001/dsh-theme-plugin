@@ -3,7 +3,7 @@ import { ThemeConfigEntries } from './config-entries.mjs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { createRequire, registerHooks } from 'node:module';
+import { registerHooks } from 'node:module';
 import { digest, ownedFile } from './files.mjs';
 import { API, ThemeError } from '../shared/protocol.mjs';
 import { hostRequire, hostModule } from './host-modules.mjs';

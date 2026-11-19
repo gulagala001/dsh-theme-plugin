@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { mkdir, writeFile, readFile, rm } from 'node:fs/promises';
+import { mkdir, writeFile, rm } from 'node:fs/promises';
 import { join, resolve, dirname } from 'node:path';
 import { createRequire } from 'node:module';
 import { randomUUID } from 'node:crypto';

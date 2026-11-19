@@ -1,14 +1,14 @@
-import { mkdir, readdir, readFile, writeFile, rename, cp, stat, rm } from 'node:fs/promises';
-import { join, resolve, basename, dirname } from 'node:path';
+import { mkdir, readdir, readFile, writeFile, rename, rm } from 'node:fs/promises';
+import { join, basename, dirname } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { Library } from './store.mjs';
 import { Market } from './market.mjs';
-import { acquire, candidates, extract, copyLocal, publishedFallback } from './packages.mjs';
+import { acquire, candidates, extract, publishedFallback } from './packages.mjs';
 import { inspectTheme } from './formats.mjs';
 import { preflight, resolveCli } from './probe.mjs';
-import { atomic, digest, exists, json, inside, ownedFile } from './files.mjs';
+import { digest, exists, json, inside, ownedFile } from './files.mjs';
 import { HOST_VERSION, VERSION, ThemeError, repairTask } from '../shared/protocol.mjs';
 import { needsRecheck, needsRuntimeProbe, isHostThemeService, isNativeThemeController } from '../shared/host-contract.mjs';
 import { NativeThemeBackends } from './native-backend.mjs';

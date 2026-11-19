@@ -1,5 +1,5 @@
 import { join, resolve, extname, relative } from 'node:path';
-import { readFile, stat } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import { ThemeEngine, publicTheme } from './host/engine.mjs';
 import { ownedFile, digest, json, atomic } from './host/files.mjs';
 import { API, ThemeError, repairTask } from './shared/protocol.mjs';

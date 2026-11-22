@@ -1,4 +1,4 @@
-# DSH Theme 0.3.10 · DSH 0.2.2-rc.3（未发布）
+# DSH Theme 0.3.10 · DSH 0.2.2-rc.3
 
 [中文](#zh-0310) · [English](#en-0310)
 
